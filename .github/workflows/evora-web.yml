@@ -196,15 +196,19 @@ jobs:
             ${{ steps.pkg.outputs.out }}/SHA256SUMS
           if-no-files-found: error
 
+      # Les mesures ne bloquent pas (set +e, exit 0) ; seul un instrument cassé (erreur de syntaxe)
+      # rend l'étape rouge. Pas de continue-on-error : il masquerait un résumé tronqué.
       - name: Garde-fous (non bloquants, première passe)
         if: ${{ !cancelled() && steps.pkg.outcome == 'success' }}
-        continue-on-error: true
         env:
           PKG: ${{ steps.pkg.outputs.pkg }}
           OUT: ${{ steps.pkg.outputs.out }}
           NAME: ${{ steps.pkg.outputs.name }}
         run: |
-          set -uo pipefail
+          # bash -e est imposé par le runner : on le retire, une mesure vide ne doit pas couper le résumé.
+          set +e
+          set -u -o pipefail
+          sha() { sha256sum "$1" 2>/dev/null | cut -d' ' -f1; }
           count() { # motif [options grep] : occurrences dans le bundle, hors LICENSES/ et EVORA-BUILD.txt
             local pat="$1"; shift
             find "$PKG" -type f ! -path "$PKG/LICENSES/*" ! -name EVORA-BUILD.txt -print0 \
@@ -215,7 +219,7 @@ jobs:
             find "$PKG" -type f ! -path "$PKG/LICENSES/*" ! -name EVORA-BUILD.txt -print0 \
               | while IFS= read -r -d '' f; do
                   n="$(grep -a -o "$@" -e "$pat" "$f" 2>/dev/null | wc -l)"
-                  [ "$n" -gt 0 ] && echo "  - \`${f#"$PKG"/}\` : $n"
+                  if [ "$n" -gt 0 ]; then echo "  - \`${f#"$PKG"/}\` : $n"; fi
                 done
             return 0
           }
@@ -242,6 +246,19 @@ jobs:
             done
             echo "- site complet (hors LICENSES/) : $(du -sb --exclude=LICENSES "$PKG" | cut -f1) octets"
             echo
+            echo "### wasm-opt a-t-il tourné ? (sorties intermédiaires de Trunk dans target/)"
+            BG="$(find target/wasm-bindgen/release -maxdepth 1 -name '*_bg.wasm' 2>/dev/null | head -n 1)"
+            WO="$(find target/wasm-opt/release -maxdepth 1 -name '*_bg.wasm' 2>/dev/null | head -n 1)"
+            DW="$(find "$PKG" -maxdepth 1 -name '*_bg.wasm' | head -n 1)"
+            for f in "$BG" "$WO" "$DW"; do
+              [ -n "$f" ] && echo "- \`$f\` : $(stat -c %s "$f") octets, sha256 $(sha "$f"), modifié $(date -u -r "$f" +%H:%M:%SZ)"
+            done
+            if [ -n "$WO" ] && [ -n "$BG" ] && [ "$(sha "$DW")" = "$(sha "$WO")" ] && [ "$(sha "$DW")" != "$(sha "$BG")" ]; then
+              echo "- verdict : le .wasm livré est la sortie de wasm-opt, distincte de celle de wasm-bindgen"
+            else
+              echo "- verdict : NON PROUVÉ (le .wasm livré n'est pas identifié comme sortie de wasm-opt)"
+            fi
+            echo
             echo "### Marques dans le bundle (mesure de la cible E1 : 0), hors LICENSES/"
             echo "| Motif | Occurrences |"
             echo "|---|---|"
@@ -259,4 +276,8 @@ jobs:
             echo '```'
             (cd "$PKG/.." && find "$NAME" -type f -printf '%s\t%p\n' | sort -k2)
             echo '```'
+            echo
+            echo "Fin des garde-fous."
           } | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Garde-fou E1 (non bloquant)::ArtCraft (casse exacte) : $(count ArtCraft) occurrence(s) dans le bundle"
+          exit 0
