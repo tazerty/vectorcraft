@@ -17,6 +17,7 @@ use vectorcraft_ui_egui::print::{PrintJob, PrintService, Printer};
 use vectorcraft_ui_egui::{Services, VectorcraftApp};
 use wasm_bindgen::JsCast as _;
 
+use crate::ehp::Bridge;
 use crate::locks::WebLocks;
 
 type Inbox = Arc<Mutex<Vec<(String, Vec<u8>)>>>;
@@ -52,6 +53,8 @@ struct Host {
     /// with it the page's Web Locks), so the tab stays the owner of its recovery area and, hosted
     /// by Evora, keeps the copies it holds in memory.
     recovery: Arc<dyn RecoveryStore>,
+    /// Evora (patch E4): the host bridge, when the page is hosted by Evora (`?host=evora`).
+    bridge: Option<Bridge>,
     /// Graphics restarts so far.
     restarts: u32,
 }
@@ -63,10 +66,12 @@ pub fn start() {
         return;
     };
     detect_language();
-    // Evora (patch E5): hosted, Data Recovery lives in memory, the page takes no Web Lock and reads
-    // or writes nothing in the browser's storage. What earlier sessions left there goes only on a
-    // verified `evora:init` or `evora:purge` (host bridge, patch E4), never because of the address.
+    // Evora (patches E4, E5): hosted, Data Recovery lives in memory, the page takes no Web Lock and
+    // reads or writes nothing in the browser's storage; the bridge announces `evora:ready` to an
+    // admitted parent. What earlier sessions left in the browser goes only on a verified
+    // `evora:init` or `evora:purge` ([`Bridge`]), never because of the address alone.
     let hosted = hosted_by_evora().then(|| Arc::new(HostedStore::default()));
+    let bridge = hosted.clone().map(Bridge::start);
     wasm_bindgen_futures::spawn_local(async move {
         // Before the first frame, which looks for copies a crash left behind.
         let recovery = match hosted {
@@ -83,6 +88,7 @@ pub fn start() {
             drag: DragPos::default(),
             pasted: Rc::default(),
             recovery,
+            bridge,
             restarts: 0,
         };
         track_paste(&host.pasted);
@@ -104,7 +110,7 @@ async fn run(host: Host, canvas: web_sys::HtmlCanvasElement, moving: Option<Movi
     let kept = moving.as_ref().map(|m| m.kept);
     // The app until the new runner takes it (still here if starting fails before).
     let slot = Rc::new(RefCell::new(moving.map(|m| m.app)));
-    let (runner, taken, page) = (host.runner.clone(), slot.clone(), canvas.clone());
+    let (runner, taken, page, bridge) = (host.runner.clone(), slot.clone(), canvas.clone(), host.bridge.clone());
     let result = runner
         .start(
             canvas,
@@ -120,7 +126,10 @@ async fn run(host: Host, canvas: web_sys::HtmlCanvasElement, moving: Option<Movi
                     rs.device.set_device_lost_callback(move |reason, msg| loss.report(&ctx, format!("{reason:?}: {msg}")));
                 }
                 host.pasted.borrow_mut().ctx = Some(ctx.clone());
-                let services = services(host.inbox.clone(), host.place_inbox.clone(), ctx.clone(), host.recovery.clone());
+                if let Some(bridge) = &host.bridge {
+                    bridge.set_context(ctx);
+                }
+                let services = services(host.inbox.clone(), host.place_inbox.clone(), ctx.clone(), host.recovery.clone(), host.bridge.clone());
                 let app = match taken.borrow_mut().take() {
                     Some(mut app) => {
                         // The old services asked the old context for frames.
@@ -147,10 +156,18 @@ async fn run(host: Host, canvas: web_sys::HtmlCanvasElement, moving: Option<Movi
                 el.remove();
             }
         }
-        (Err(e), None) => notice(&[&format!("VectorCraft failed to start: {}", js_err(e)), "A browser with WebGPU or WebGL2 is required."]),
+        (Err(e), None) => {
+            let why = js_err(e);
+            // Evora (patch E4): the host shows its own localized message (`evora:failed`).
+            if let Some(bridge) = &bridge {
+                let lower = why.to_ascii_lowercase();
+                bridge.fail(if ["webgl", "webgpu", "adapter", "gpu"].iter().any(|w| lower.contains(w)) { "no_webgl2" } else { "init" });
+            }
+            notice(&[&format!("VectorCraft failed to start: {why}"), "A browser with WebGPU or WebGL2 is required."]);
+        }
         (Err(e), Some(kept)) => {
             log::error!("vectorcraft-web: couldn't restart the graphics: {}", js_err(e));
-            give_up(slot.borrow_mut().take(), kept);
+            give_up(slot.borrow_mut().take(), kept, bridge.as_ref());
         }
     }
 }
@@ -185,13 +202,18 @@ fn detect_language() {
     }
     i18n::set_system_locales(tags.as_slice());
     let lang = i18n::system_lang();
-    if let Some(root) = web_sys::window().and_then(|w| w.document()).and_then(|d| d.document_element())
-        && let Err(e) = root.set_attribute("lang", lang.code())
-    {
-        log::warn!("couldn't set the page language: {e:?}");
-    }
+    set_page_lang(lang.code());
     if let Some(el) = element(LOADING_ID) {
         el.set_text_content(Some(i18n::message(lang, "Loading VectorCraft…").as_str()));
+    }
+}
+
+/// The page's `lang` attribute (accessibility; the smoke test reads it).
+pub(crate) fn set_page_lang(code: &str) {
+    if let Some(root) = web_sys::window().and_then(|w| w.document()).and_then(|d| d.document_element())
+        && let Err(e) = root.set_attribute("lang", code)
+    {
+        log::warn!("couldn't set the page language: {e:?}");
     }
 }
 
@@ -311,9 +333,13 @@ fn fresh_canvas(old: &web_sys::HtmlCanvasElement) -> Result<web_sys::HtmlCanvasE
 /// The graphics are lost for good: the dead canvas goes (it would show a stale picture), the app
 /// (if still here) lets go of its recovery copies so the reloaded page offers them at once, and
 /// the page says what to do.
-fn give_up(app: Option<VectorcraftApp>, kept: bool) {
+fn give_up(app: Option<VectorcraftApp>, kept: bool, bridge: Option<&Bridge>) {
     if let Some(mut app) = app {
         recovery::leave(&mut app.session);
+    }
+    // Evora (patch E4): the engine can't go on.
+    if let Some(bridge) = bridge {
+        bridge.fail("no_webgl2");
     }
     if let Some(canvas) = element(CANVAS_ID) {
         canvas.remove();
@@ -379,9 +405,9 @@ impl WebShell {
             Ok(canvas) => wasm_bindgen_futures::spawn_local(run(host, canvas, Some(Moving { app, kept }))),
             Err(e) => {
                 log::error!("vectorcraft-web: giving up on the graphics: {e}");
-                let runner = host.runner;
+                let runner = host.runner.clone();
                 wasm_bindgen_futures::spawn_local(async move { runner.destroy() });
-                give_up(Some(app), kept);
+                give_up(Some(app), kept, host.bridge.as_ref());
             }
         }
     }
@@ -393,6 +419,10 @@ impl eframe::App for WebShell {
             self.restart(&why);
         }
         let Some(app) = &mut self.app else { return };
+        // Evora (patch E4): what the host asked since the last frame.
+        if let Some(bridge) = &self.host.bridge {
+            bridge.before_frame(app);
+        }
         let pasted = self.host.pasted.borrow_mut().flavour.take();
         if let Some((f, held)) = pasted {
             app.paste_from_host(ctx, f, held);
@@ -423,6 +453,9 @@ impl eframe::App for WebShell {
             }
         }
         app.logic(ctx);
+        if let Some(bridge) = &self.host.bridge {
+            bridge.after_frame(app);
+        }
     }
 
     fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
@@ -433,12 +466,18 @@ impl eframe::App for WebShell {
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         if let Some(app) = &mut self.app {
+            if let Some(bridge) = &self.host.bridge {
+                bridge.note_active(app);
+            }
             app.ui(ui);
+            if let Some(bridge) = &self.host.bridge {
+                bridge.after_frame(app);
+            }
         }
     }
 }
 
-fn services(inbox: Inbox, place_inbox: PlaceInbox, ctx: egui::Context, recovery: Arc<dyn RecoveryStore>) -> Services {
+fn services(inbox: Inbox, place_inbox: PlaceInbox, ctx: egui::Context, recovery: Arc<dyn RecoveryStore>, bridge: Option<Bridge>) -> Services {
     let open_inbox = inbox.clone();
     let picked = place_inbox.clone();
     let place_ctx = ctx.clone();
@@ -479,7 +518,12 @@ fn services(inbox: Inbox, place_inbox: PlaceInbox, ctx: egui::Context, recovery:
                 ctx.request_repaint();
             });
         })),
-        download: Some(Box::new(|name: &str, bytes: &[u8]| {
+        download: Some(Box::new(move |name: &str, bytes: &[u8]| {
+            // Evora (patch E4): a save of the document the host opened goes to the host
+            // (`evora:save`), never to a download.
+            if bridge.as_ref().is_some_and(|b| b.take_download(name, bytes)) {
+                return;
+            }
             if let Err(e) = download(name, bytes) {
                 log::error!("download of {name} failed: {e}");
             }
@@ -507,10 +551,11 @@ struct BrowserStore {
 
 const RECOVERY_PREFIX: &str = "vectorcraft-recovery/";
 
-/// Evora (patch E5): is the page hosted by Evora (`?host=evora`, HOST-PROTOCOL §2.4)? Then it keeps
-/// nothing in the browser (Data Recovery in memory for the tab's life, no Web Lock). The address
-/// only switches modes: it never deletes anything, and the account's storage namespace
-/// (`storageNs`) only arrives by message (patch E4). Not hosted: as upstream.
+/// Evora (patches E4, E5): is the page hosted by Evora (`?host=evora`, HOST-PROTOCOL §2.4)? Then
+/// it keeps nothing in the browser (Data Recovery in memory for the tab's life, no Web Lock) and
+/// speaks EHP with the parent `evora-host.json` admits. The address only switches modes: it never
+/// deletes anything, and the account's storage namespace (`storageNs`) only arrives by message.
+/// Not hosted: as upstream.
 fn hosted_by_evora() -> bool {
     query_param("host").as_deref() == Some("evora")
 }
@@ -520,7 +565,6 @@ fn hosted_by_evora() -> bool {
 /// how many went. Only for a verified `evora:init` or `evora:purge` (host bridge, patch E4). Other keys of the
 /// origin (other engines', the host's) are left alone; this engine has nothing in OPFS, IndexedDB
 /// or the Cache API.
-#[allow(dead_code)] // Called by the host bridge (patch E4) on `evora:init` and `evora:purge`.
 pub(crate) fn purge_browser_storage() -> Result<usize, String> {
     let storage = match web_sys::window().ok_or("no window")?.local_storage() {
         Ok(Some(s)) => s,
@@ -555,7 +599,6 @@ pub(crate) struct HostedStore {
 
 impl HostedStore {
     /// Refuse every write from now on, then drop every copy → how many went.
-    #[allow(dead_code)] // Called by the host bridge (patch E4) on `evora:purge`.
     pub(crate) fn purge(&self) -> usize {
         self.closed.store(true, Ordering::SeqCst);
         let names = self.copies.list().unwrap_or_default();
