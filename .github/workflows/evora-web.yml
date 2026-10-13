@@ -14,7 +14,8 @@
 #                  (LICENSES/THIRD-PARTY-LICENSES.txt) ;
 #   job web      : marques ArtCraft dans le bundle, fichiers d'hébergement, termes sensibles (E9),
 #                  émojis des catalogues affichés (E10), empreintes CSP, test de fumée Chrome depuis
-#                  une autre origine avec langue imposée (E3) et stockage hébergé purgé (E5).
+#                  une autre origine avec langue imposée (E3), thème imposé vérifié au rendu (E2)
+#                  et stockage hébergé purgé (E5).
 #                  Sorties .br et .gz, mesure de taille.
 # Le zip et l'artefact ne sont produits que si toutes les portes sont vertes ; ils portent le nom
 # Evora evora-sinopia-pro-web-<tag> (EVORA-SIN-10).
@@ -368,6 +369,10 @@ jobs:
           # démarrage doit être purgée, une clé témoin de l'origine doit rester.
           SMOKE_HOST: evora
           SMOKE_SEED: "1"
+          # Patch E2 : thème clair imposé par l'hôte, vérifié au rendu sur la barre d'application
+          # (jeton app_bar de la luminosité Light, #e4e4e4).
+          SMOKE_THEME: light
+          SMOKE_EXPECT_BAR: e4e4e4
         run: |
           set +e
           set -u

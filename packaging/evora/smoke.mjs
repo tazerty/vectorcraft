@@ -13,6 +13,9 @@
 //
 // Langue imposée (patch E3) : SMOKE_LANG est passé au moteur en `?lang=` et, si SMOKE_EXPECT_LANG
 // est donné, l'attribut `lang` de la page du moteur doit valoir ce code (porte bloquante).
+// Thème imposé (patch E2), vérifié au rendu : SMOKE_THEME est passé en `?theme=` ; avec
+// SMOKE_EXPECT_BAR=<rrggbb>, la couleur dominante du haut de l'iframe (barre d'application) doit
+// valoir cette couleur, à ±3 par canal.
 // Stockage du moteur hébergé (patch E5) : SMOKE_HOST=evora ajoute `host=evora` ; avec SMOKE_SEED=1,
 // une page de l'origine A sème d'abord dans le localStorage une copie de récupération (sabordage :
 // elle doit disparaître) et une clé témoin (elle doit rester), puis charge le moteur.
@@ -41,10 +44,13 @@ const BACKGROUND = [0x26, 0x26, 0x26]; // fond de index.html
 const SMOKE_LANG = process.env.SMOKE_LANG || '';
 const SMOKE_EXPECT_LANG = process.env.SMOKE_EXPECT_LANG || '';
 const SMOKE_HOST = process.env.SMOKE_HOST || '';
+const SMOKE_THEME = process.env.SMOKE_THEME || '';
+const SMOKE_EXPECT_BAR = (process.env.SMOKE_EXPECT_BAR || '').toLowerCase();
 const SMOKE_SEED = process.env.SMOKE_SEED === '1';
 const QUERY_PARTS = [];
 if (SMOKE_LANG) QUERY_PARTS.push(`lang=${encodeURIComponent(SMOKE_LANG)}`);
 if (SMOKE_HOST) QUERY_PARTS.push(`host=${encodeURIComponent(SMOKE_HOST)}`);
+if (SMOKE_THEME) QUERY_PARTS.push(`theme=${encodeURIComponent(SMOKE_THEME)}`);
 const ENGINE_QUERY = QUERY_PARTS.length ? `?${QUERY_PARTS.join('&')}` : '';
 const SEED_RECOVERY_KEY = 'vectorcraft-recovery/temoin-zone/temoin.vectorcraft';
 const SEED_WITNESS_KEY = 'evora-temoin-intact';
@@ -92,6 +98,7 @@ const report = {
   bytesA: 0,
   pixels: null,
   lang: { requested: SMOKE_LANG || null, expected: SMOKE_EXPECT_LANG || null, got: null },
+  theme: { requested: SMOKE_THEME || null, expectedBar: SMOKE_EXPECT_BAR || null, dominantBar: null },
   storage: { host: SMOKE_HOST || null, seeded: SMOKE_SEED ? [SEED_RECOVERY_KEY, SEED_WITNESS_KEY] : [], after: null },
   timeline: { contextA: null, firstProbe: null, polls: 0 },
   crashed: false,
@@ -425,6 +432,26 @@ function decodePng(buf) {
   return { width, height, bpp, data: out };
 }
 
+/// La couleur la plus fréquente d'une bande de `rows` lignes en haut de `rect`.
+function dominantTop(png, rect, rows) {
+  const counts = new Map();
+  const x0 = Math.max(0, Math.floor(rect.x));
+  const x1 = Math.min(png.width, Math.floor(rect.x + rect.width));
+  const y0 = Math.max(0, Math.floor(rect.y) + 2);
+  const y1 = Math.min(png.height, y0 + rows);
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = (y * png.width + x) * png.bpp;
+      const key = (png.data[i] << 16) | (png.data[i + 1] << 8) | png.data[i + 2];
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+  }
+  let best = 0;
+  let bestN = -1;
+  for (const [k, n] of counts) if (n > bestN) [best, bestN] = [k, n];
+  return best.toString(16).padStart(6, '0');
+}
+
 function pixelStats(png, rect) {
   const colors = new Set();
   let other = 0;
@@ -528,7 +555,9 @@ async function main() {
       }, sessionId);
       const rect = JSON.parse(frame.result.value);
       const shot = await send('Page.captureScreenshot', { format: 'png' }, sessionId);
-      report.pixels = pixelStats(decodePng(Buffer.from(shot.data, 'base64')), rect);
+      const png = decodePng(Buffer.from(shot.data, 'base64'));
+      report.pixels = pixelStats(png, rect);
+      report.theme.dominantBar = dominantTop(png, rect, 10);
     } catch (e) {
       report.pixels = { error: String(e) };
     }
@@ -542,6 +571,11 @@ async function main() {
   if (report.ready && !(p && p.canvas && p.width > 0 && p.height > 0)) report.reasons.push('canvas absent ou sans dimension');
   report.lang.got = p ? p.htmlLang : null;
   report.storage.after = p ? p.storageKeys : null;
+  if (SMOKE_EXPECT_BAR && report.ready) {
+    const got = report.theme.dominantBar || '';
+    const near = got.length === 6 && [0, 2, 4].every((i) => Math.abs(parseInt(got.slice(i, i + 2), 16) - parseInt(SMOKE_EXPECT_BAR.slice(i, i + 2), 16)) <= 3);
+    if (!near) report.reasons.push(`thème imposé : barre d'application #${got || '?'} au lieu de #${SMOKE_EXPECT_BAR}`);
+  }
   if (SMOKE_SEED && report.ready) {
     const after = report.storage.after || [];
     const left = after.filter((k) => k.startsWith('vectorcraft-recovery/'));
