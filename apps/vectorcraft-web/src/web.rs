@@ -3,12 +3,13 @@
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use vectorcraft_engine::Session;
 use vectorcraft_engine::cmd::clipboard::{FILE_HEAD, Flavour, PASTE_ORDER, file_flavour, is_address};
 use vectorcraft_engine::cmd::fileio;
-use vectorcraft_engine::cmd::recovery::{self, Hold, RecoveryStore};
+use vectorcraft_engine::cmd::recovery::{self, Hold, Lock, RecoveryStore};
 use vectorcraft_ui_egui::graphics::GraphicsLoss;
 use vectorcraft_ui_egui::i18n;
 use vectorcraft_ui_egui::place::{DropTarget, PlaceArrival, PlaceInbox};
@@ -62,17 +63,15 @@ pub fn start() {
         return;
     };
     detect_language();
-    let hosted = hosted_by_evora();
-    if hosted {
-        purge_browser_storage();
-    }
+    // Evora (patch E5): hosted, Data Recovery lives in memory, the page takes no Web Lock and reads
+    // or writes nothing in the browser's storage. What earlier sessions left there goes only on a
+    // verified `evora:init` or `evora:purge` (host bridge, patch E4), never because of the address.
+    let hosted = hosted_by_evora().then(|| Arc::new(HostedStore::default()));
     wasm_bindgen_futures::spawn_local(async move {
-        // Before the first frame, which looks for copies a crash left behind. Hosted by Evora
-        // (patch E5), the copies live in memory and the page takes no Web Lock.
-        let recovery = if hosted {
-            Arc::new(recovery::MemoryStore::default()) as Arc<dyn RecoveryStore>
-        } else {
-            Arc::new(BrowserStore { locks: WebLocks::start(RECOVERY_PREFIX).await }) as Arc<dyn RecoveryStore>
+        // Before the first frame, which looks for copies a crash left behind.
+        let recovery = match hosted {
+            Some(store) => store as Arc<dyn RecoveryStore>,
+            None => Arc::new(BrowserStore { locks: WebLocks::start(RECOVERY_PREFIX).await }) as Arc<dyn RecoveryStore>,
         };
         // Fallback fonts the first frame needs (Noto Sans Arabic), fetched while the loading text
         // shows; the rest load in the background once the app runs.
@@ -508,28 +507,102 @@ struct BrowserStore {
 
 const RECOVERY_PREFIX: &str = "vectorcraft-recovery/";
 
-/// Evora (patch E5): is the page hosted by Evora (`?host=evora`, HOST-PROTOCOL §2.4)? The account's
-/// storage namespace (`storageNs`) only ever arrives by message, with the host bridge (patch E4),
-/// never in the address. Until then a hosted engine keeps nothing in the browser: Data Recovery
-/// lives in memory for the tab's life, no Web Lock is taken, and [`purge_browser_storage`] runs
-/// before the first frame. Not hosted: as upstream.
+/// Evora (patch E5): is the page hosted by Evora (`?host=evora`, HOST-PROTOCOL §2.4)? Then it keeps
+/// nothing in the browser (Data Recovery in memory for the tab's life, no Web Lock). The address
+/// only switches modes: it never deletes anything, and the account's storage namespace
+/// (`storageNs`) only arrives by message (patch E4). Not hosted: as upstream.
 fn hosted_by_evora() -> bool {
     query_param("host").as_deref() == Some("evora")
 }
 
-/// Evora (patch E5): remove the copies Data Recovery left in this origin's local storage under
-/// [`RECOVERY_PREFIX`] (an earlier session, perhaps another account's): the next account never sees
-/// the previous one's. Other keys of the origin are left alone.
-fn purge_browser_storage() {
-    let Ok(storage) = local_storage() else { return };
-    let n = storage.length().unwrap_or(0);
-    let keys: Vec<String> = (0..n).filter_map(|i| storage.key(i).ok().flatten()).filter(|k| k.starts_with(RECOVERY_PREFIX)).collect();
+/// Evora (patch E5): remove what Data Recovery left in this origin's local storage under
+/// [`RECOVERY_PREFIX`] (earlier sessions, perhaps another account's), then check none is left →
+/// how many went. Only for a verified `evora:init` or `evora:purge` (host bridge, patch E4). Other keys of the
+/// origin (other engines', the host's) are left alone; this engine has nothing in OPFS, IndexedDB
+/// or the Cache API.
+#[allow(dead_code)] // Called by the host bridge (patch E4) on `evora:init` and `evora:purge`.
+pub(crate) fn purge_browser_storage() -> Result<usize, String> {
+    let storage = match web_sys::window().ok_or("no window")?.local_storage() {
+        Ok(Some(s)) => s,
+        // No storage here: nothing could have been kept.
+        Ok(None) => return Ok(0),
+        Err(e) => return Err(format!("browser storage is out of reach: {}", js_err(e))),
+    };
+    let keys = recovery_keys(&storage);
     for key in &keys {
-        if let Err(e) = storage.remove_item(key) {
-            log::warn!("vectorcraft-web: couldn't purge {key}: {}", js_err(e));
-        }
+        storage.remove_item(key).map_err(|e| format!("couldn't remove {key}: {}", js_err(e)))?;
     }
-    log::info!("vectorcraft-web: hosted by Evora: Data Recovery in memory; {} entries purged from browser storage", keys.len());
+    match recovery_keys(&storage).len() {
+        0 => Ok(keys.len()),
+        left => Err(format!("{left} entries are still there")),
+    }
+}
+
+/// The keys of Data Recovery's entries in `storage`.
+fn recovery_keys(storage: &web_sys::Storage) -> Vec<String> {
+    let n = storage.length().unwrap_or(0);
+    (0..n).filter_map(|i| storage.key(i).ok().flatten()).filter(|k| k.starts_with(RECOVERY_PREFIX)).collect()
+}
+
+/// Evora (patch E5): Data Recovery's store while hosted: in memory for the tab's life (no browser
+/// storage, no Web Lock), and closed for good by [`HostedStore::purge`] (`evora:purge`): from then on
+/// every write is refused, so nothing comes back after the purge.
+#[derive(Default)]
+pub(crate) struct HostedStore {
+    copies: recovery::MemoryStore,
+    closed: AtomicBool,
+}
+
+impl HostedStore {
+    /// Refuse every write from now on, then drop every copy → how many went.
+    #[allow(dead_code)] // Called by the host bridge (patch E4) on `evora:purge`.
+    pub(crate) fn purge(&self) -> usize {
+        self.closed.store(true, Ordering::SeqCst);
+        let names = self.copies.list().unwrap_or_default();
+        for name in &names {
+            let _ = self.copies.remove(name);
+        }
+        names.len()
+    }
+}
+
+impl RecoveryStore for HostedStore {
+    fn list(&self) -> Result<Vec<String>, String> {
+        self.copies.list()
+    }
+    fn read(&self, name: &str) -> Result<Vec<u8>, String> {
+        self.copies.read(name)
+    }
+    fn write(&self, name: &str, bytes: &[u8]) -> Result<(), String> {
+        if self.closed.load(Ordering::SeqCst) {
+            return Err("Data Recovery is off: Evora purged this editor's storage".into());
+        }
+        self.copies.write(name, bytes)
+    }
+    fn remove(&self, name: &str) -> Result<(), String> {
+        self.copies.remove(name)
+    }
+    fn location(&self) -> String {
+        self.copies.location()
+    }
+    fn areas(&self) -> Result<Vec<String>, String> {
+        self.copies.areas()
+    }
+    fn lock(&self, area: &str) -> Result<Lock, String> {
+        self.copies.lock(area)
+    }
+    fn announce(&self, area: &str) -> Option<Hold> {
+        self.copies.announce(area)
+    }
+    fn announced(&self, area: &str) -> Option<bool> {
+        self.copies.announced(area)
+    }
+    fn remove_area(&self, area: &str) {
+        self.copies.remove_area(area)
+    }
+    fn now(&self) -> Option<i64> {
+        self.copies.now()
+    }
 }
 
 fn js_err(e: wasm_bindgen::JsValue) -> String {
