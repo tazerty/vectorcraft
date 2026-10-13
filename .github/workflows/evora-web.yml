@@ -14,7 +14,8 @@
 #                  (LICENSES/THIRD-PARTY-LICENSES.txt) ;
 #   job web      : marques ArtCraft dans le bundle, fichiers d'hébergement, termes sensibles (E9),
 #                  émojis des catalogues affichés (E10), empreintes CSP, test de fumée Chrome depuis
-#                  une autre origine avec langue imposée (E3). Sorties .br et .gz, mesure de taille.
+#                  une autre origine avec langue imposée (E3) et stockage hébergé purgé (E5).
+#                  Sorties .br et .gz, mesure de taille.
 # Le zip et l'artefact ne sont produits que si toutes les portes sont vertes ; ils portent le nom
 # Evora evora-sinopia-pro-web-<tag> (EVORA-SIN-10).
 name: Evora web
@@ -363,6 +364,10 @@ jobs:
           # Patch E3 : la langue imposée par l'hôte, et la correspondance zh-Hans → zh-hans.
           SMOKE_LANG: zh-Hans
           SMOKE_EXPECT_LANG: zh-hans
+          # Patch E5 : moteur hébergé (?host=evora) ; une copie de récupération semée avant le
+          # démarrage doit être purgée, une clé témoin de l'origine doit rester.
+          SMOKE_HOST: evora
+          SMOKE_SEED: "1"
         run: |
           set +e
           set -u

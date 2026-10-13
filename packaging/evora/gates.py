@@ -367,6 +367,9 @@ def cmd_smoke_summary(path):
     print(f"- contexte de l'iframe vu à {tl.get('contextA')} ms ; sondages : {tl.get('polls')}")
     print(f"- canvas : présent={p.get('canvas')} ; {p.get('width')}×{p.get('height')} px (affiché {p.get('clientWidth')}×{p.get('clientHeight')}) ; titre : « {p.get('title')} » ; `navigator.gpu` : {p.get('webgpu')}")
     print(f"- moteur graphique annoncé par le moteur : {r.get('backend') or 'non vu dans la console'}")
+    st = r.get("storage") or {}
+    if st.get("seeded"):
+        print(f"- stockage hébergé (E5) : `?host={st.get('host')}` ; semé avant le moteur : {', '.join('`' + k + '`' for k in st['seeded'])} ; après démarrage : {', '.join('`' + k + '`' for k in (st.get('after') or [])) or 'aucune clé'}")
     lang = r.get("lang") or {}
     if lang.get("requested"):
         print(f"- langue imposée (E3) : `?lang={lang.get('requested')}` ; attribut `lang` attendu « {lang.get('expected')} », obtenu « {lang.get('got')} »")
