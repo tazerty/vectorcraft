@@ -15,7 +15,8 @@
 #   job web      : marques ArtCraft dans le bundle, fichiers d'hébergement, termes sensibles (E9),
 #                  émojis des catalogues affichés (E10), empreintes CSP, test de fumée Chrome depuis
 #                  une autre origine avec langue imposée (E3). Sorties .br et .gz, mesure de taille.
-# Le zip et l'artefact ne sont produits que si toutes les portes sont vertes.
+# Le zip et l'artefact ne sont produits que si toutes les portes sont vertes ; ils portent le nom
+# Evora evora-sinopia-pro-web-<tag> (EVORA-SIN-10).
 name: Evora web
 
 on:
@@ -295,8 +296,9 @@ jobs:
           case "$REF_NAME" in
             evora/*) [ "$REF_NAME" = "evora/$TAG" ] || echo "::warning::branche $REF_NAME différente de evora/$TAG" ;;
           esac
-          # Nom amont tant que le nom Evora n'est pas pris (commit distinct, après E1 et portes vertes).
-          NAME="evora-vectorcraft-web-$TAG"
+          # Nom Evora de l'artefact (EVORA-SIN-10), pris après le run 38367951778 où E1 et toutes
+          # les portes étaient vertes ; jamais avant.
+          NAME="evora-sinopia-pro-web-$TAG"
           WORK="$RUNNER_TEMP/evora-pkg"
           OUT="$RUNNER_TEMP/evora-out"
           rm -rf "$WORK" "$OUT"
@@ -314,6 +316,7 @@ jobs:
             cp "$ofl" "$WORK/$NAME/LICENSES/OFL-$(basename "$(dirname "$ofl")").txt"
           done
           {
+            echo "product=Sinopia Pro (Evora), étage Pro de Sinopia"
             echo "upstream=storytold/vectorcraft"
             echo "upstream_tag=$TAG"
             echo "fork=$GITHUB_REPOSITORY"
