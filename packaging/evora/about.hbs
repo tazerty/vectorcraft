@@ -1,0 +1,22 @@
+Sinopia Pro (Evora) : licences des composants tiers du build web (wasm32)
+Sinopia Pro (Evora): third-party licences of the web build (wasm32)
+
+Généré par cargo-about depuis le Cargo.lock du fork (dépendances de développement exclues).
+Les crates du dépôt lui-même sont sous MIT OR Apache-2.0 (LICENSE-MIT, LICENSE-APACHE, NOTICE).
+
+Vue d'ensemble / Overview
+{{#each overview}}
+- {{{name}}} ({{{id}}}) : {{count}}
+{{/each}}
+
+{{#each licenses}}
+================================================================================
+{{{name}}} ({{{id}}})
+Utilisée par / Used by:
+{{#each used_by}}
+- {{{crate.name}}} {{{crate.version}}}{{#if crate.repository}} <{{{crate.repository}}}>{{/if}}
+{{/each}}
+--------------------------------------------------------------------------------
+{{{text}}}
+
+{{/each}}
