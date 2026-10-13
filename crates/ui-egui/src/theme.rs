@@ -2,7 +2,8 @@
 //!
 //! Evora (patch E2): the accent is Evora's indigo (#4F46E5, darker #4338CA, lighter #818CF8 for
 //! flyout text) in every brightness, and the interface is set in Inter (already bundled for
-//! documents) instead of Source Sans 3, which stays the documents' fallback font. The host picks
+//! documents), with Source Sans 3 right after it for the characters Inter lacks (the `▾` of the
+//! Hungarian and Chinese catalogs and of the font list's disclosure triangles). The host picks
 //! Light or Dark (`?theme=`, apps/vectorcraft-web).
 
 use std::sync::Arc;
@@ -252,15 +253,17 @@ pub fn install_fonts(ctx: &egui::Context) {
     };
     add(&mut fonts, "Inter", include_bytes!("../../../assets/fonts/Inter-Regular.ttf"));
     add(&mut fonts, "Inter-SemiBold", include_bytes!("../../../assets/fonts/Inter-SemiBold.ttf"));
+    add(&mut fonts, "SourceSans3", include_bytes!("../../../assets/fonts/SourceSans3-Regular.ttf"));
+    add(&mut fonts, "SourceSans3-Semibold", include_bytes!("../../../assets/fonts/SourceSans3-Semibold.ttf"));
     add(&mut fonts, "JetBrainsMono", include_bytes!("../../../assets/fonts/JetBrainsMono-Regular.ttf"));
     let fallback: Vec<String> = fonts.families.get(&FontFamily::Proportional).cloned().unwrap_or_default();
-    let mut prop = vec!["Inter".to_string()];
+    let mut prop = vec!["Inter".to_string(), "SourceSans3".to_string()];
     prop.extend(fallback.clone());
     fonts.families.insert(FontFamily::Proportional, prop);
-    let mut semi = vec!["Inter-SemiBold".to_string()];
+    let mut semi = vec!["Inter-SemiBold".to_string(), "SourceSans3-Semibold".to_string()];
     semi.extend(fallback.clone());
     fonts.families.insert(FontFamily::Name(FONT_UI_SEMIBOLD.into()), semi);
-    let mut ui = vec!["Inter".to_string()];
+    let mut ui = vec!["Inter".to_string(), "SourceSans3".to_string()];
     ui.extend(fallback.clone());
     fonts.families.insert(FontFamily::Name(FONT_UI.into()), ui);
     let mut mono = vec!["JetBrainsMono".to_string()];
