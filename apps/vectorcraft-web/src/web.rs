@@ -47,9 +47,10 @@ struct Host {
     place_inbox: PlaceInbox,
     drag: DragPos,
     pasted: Rc<RefCell<Pasted>>,
-    /// The page's Web Locks for Data Recovery, started once before the first frame: a graphics
-    /// restart keeps them, so the tab stays the owner of its recovery area.
-    locks: Option<WebLocks>,
+    /// Data Recovery's store, made once before the first frame: a graphics restart keeps it (and
+    /// with it the page's Web Locks), so the tab stays the owner of its recovery area and, hosted
+    /// by Evora, keeps the copies it holds in memory.
+    recovery: Arc<dyn RecoveryStore>,
     /// Graphics restarts so far.
     restarts: u32,
 }
@@ -61,9 +62,18 @@ pub fn start() {
         return;
     };
     detect_language();
+    let hosted = hosted_by_evora();
+    if hosted {
+        purge_browser_storage();
+    }
     wasm_bindgen_futures::spawn_local(async move {
-        // Before the first frame, which looks for copies a crash left behind.
-        let locks = WebLocks::start(RECOVERY_PREFIX).await;
+        // Before the first frame, which looks for copies a crash left behind. Hosted by Evora
+        // (patch E5), the copies live in memory and the page takes no Web Lock.
+        let recovery = if hosted {
+            Arc::new(recovery::MemoryStore::default()) as Arc<dyn RecoveryStore>
+        } else {
+            Arc::new(BrowserStore { locks: WebLocks::start(RECOVERY_PREFIX).await }) as Arc<dyn RecoveryStore>
+        };
         // Fallback fonts the first frame needs (Noto Sans Arabic), fetched while the loading text
         // shows; the rest load in the background once the app runs.
         crate::fonts::load_startup_fonts().await;
@@ -73,7 +83,7 @@ pub fn start() {
             place_inbox: Arc::default(),
             drag: DragPos::default(),
             pasted: Rc::default(),
-            locks,
+            recovery,
             restarts: 0,
         };
         track_paste(&host.pasted);
@@ -111,7 +121,7 @@ async fn run(host: Host, canvas: web_sys::HtmlCanvasElement, moving: Option<Movi
                     rs.device.set_device_lost_callback(move |reason, msg| loss.report(&ctx, format!("{reason:?}: {msg}")));
                 }
                 host.pasted.borrow_mut().ctx = Some(ctx.clone());
-                let services = services(host.inbox.clone(), host.place_inbox.clone(), ctx.clone(), host.locks.clone());
+                let services = services(host.inbox.clone(), host.place_inbox.clone(), ctx.clone(), host.recovery.clone());
                 let app = match taken.borrow_mut().take() {
                     Some(mut app) => {
                         // The old services asked the old context for frames.
@@ -412,7 +422,7 @@ impl eframe::App for WebShell {
     }
 }
 
-fn services(inbox: Inbox, place_inbox: PlaceInbox, ctx: egui::Context, locks: Option<WebLocks>) -> Services {
+fn services(inbox: Inbox, place_inbox: PlaceInbox, ctx: egui::Context, recovery: Arc<dyn RecoveryStore>) -> Services {
     let open_inbox = inbox.clone();
     let picked = place_inbox.clone();
     let place_ctx = ctx.clone();
@@ -459,7 +469,7 @@ fn services(inbox: Inbox, place_inbox: PlaceInbox, ctx: egui::Context, locks: Op
             }
         })),
         inbox: Some(inbox),
-        recovery_store: Some(Arc::new(BrowserStore { locks })),
+        recovery_store: Some(recovery),
         // File → Print: the browser's print dialog.
         print: Some(Box::new(BrowserPrint)),
         // Evora (patch E7): the embedded editor opens no page of its own, whatever asks (a Help
@@ -480,6 +490,30 @@ struct BrowserStore {
 }
 
 const RECOVERY_PREFIX: &str = "vectorcraft-recovery/";
+
+/// Evora (patch E5): is the page hosted by Evora (`?host=evora`, HOST-PROTOCOL §2.4)? The account's
+/// storage namespace (`storageNs`) only ever arrives by message, with the host bridge (patch E4),
+/// never in the address. Until then a hosted engine keeps nothing in the browser: Data Recovery
+/// lives in memory for the tab's life, no Web Lock is taken, and [`purge_browser_storage`] runs
+/// before the first frame. Not hosted: as upstream.
+fn hosted_by_evora() -> bool {
+    query_param("host").as_deref() == Some("evora")
+}
+
+/// Evora (patch E5): remove the copies Data Recovery left in this origin's local storage under
+/// [`RECOVERY_PREFIX`] (an earlier session, perhaps another account's): the next account never sees
+/// the previous one's. Other keys of the origin are left alone.
+fn purge_browser_storage() {
+    let Ok(storage) = local_storage() else { return };
+    let n = storage.length().unwrap_or(0);
+    let keys: Vec<String> = (0..n).filter_map(|i| storage.key(i).ok().flatten()).filter(|k| k.starts_with(RECOVERY_PREFIX)).collect();
+    for key in &keys {
+        if let Err(e) = storage.remove_item(key) {
+            log::warn!("vectorcraft-web: couldn't purge {key}: {}", js_err(e));
+        }
+    }
+    log::info!("vectorcraft-web: hosted by Evora: Data Recovery in memory; {} entries purged from browser storage", keys.len());
+}
 
 fn js_err(e: wasm_bindgen::JsValue) -> String {
     format!("{e:?}")
