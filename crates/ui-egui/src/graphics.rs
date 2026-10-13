@@ -212,7 +212,7 @@ mod tests {
         assert_eq!(texture_name(&new, canvas).as_deref(), Some("canvas"), "uploaded to the new context");
         assert_eq!(texture_name(&new, preview(&new)).as_deref(), Some("preview-8x8@1:loss"), "cached previews are made again");
         assert_eq!(new.global_style().visuals.panel_fill, old.global_style().visuals.panel_fill, "the theme is applied again");
-        assert!(new.fonts(|f| f.definitions().font_data.contains_key("SourceSans3")), "and the fonts installed");
+        assert!(new.fonts(|f| f.definitions().font_data.contains_key("Inter")), "and the fonts installed (Evora E2: Inter)");
     }
 
     #[test]

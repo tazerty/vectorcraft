@@ -1,4 +1,9 @@
 //! Design tokens (Illustrator's four UI brightness levels), fonts and egui style.
+//!
+//! Evora (patch E2): the accent is Evora's indigo (#4F46E5, darker #4338CA, lighter #818CF8 for
+//! flyout text) in every brightness, and the interface is set in Inter (already bundled for
+//! documents) instead of Source Sans 3, which stays the documents' fallback font. The host picks
+//! Light or Dark (`?theme=`, apps/vectorcraft-web).
 
 use std::sync::Arc;
 
@@ -113,8 +118,8 @@ impl Tokens {
             icon: hex(0xcfcfcf),
             hover: hex(0x444444),
             tool_active: hex(0x1d1d1d),
-            accent: hex(0x378ef0),
-            accent_strong: hex(0x1473e6),
+            accent: hex(0x4f46e5),
+            accent_strong: hex(0x4338ca),
             row_selected: hex(0x484b50),
             pasteboard: hex(0x1e1e1e),
             ruler: hex(0x2f2f2f),
@@ -129,7 +134,7 @@ impl Tokens {
             button_border: hex(0x6a6a6a),
             selection: hex(0x4f80ff),
             anchor_selected: hex(0x3d82ff),
-            flyout_active: hex(0x54b2f7),
+            flyout_active: hex(0x818cf8),
             font_size: 13.0,
             caption_close: hex(0xc42b1c),
             caption_close_text: Color32::WHITE,
@@ -245,17 +250,17 @@ pub fn install_fonts(ctx: &egui::Context) {
     let add = |f: &mut FontDefinitions, name: &str, bytes: &'static [u8]| {
         f.font_data.insert(name.to_owned(), Arc::new(FontData::from_static(bytes)));
     };
-    add(&mut fonts, "SourceSans3", include_bytes!("../../../assets/fonts/SourceSans3-Regular.ttf"));
-    add(&mut fonts, "SourceSans3-Semibold", include_bytes!("../../../assets/fonts/SourceSans3-Semibold.ttf"));
+    add(&mut fonts, "Inter", include_bytes!("../../../assets/fonts/Inter-Regular.ttf"));
+    add(&mut fonts, "Inter-SemiBold", include_bytes!("../../../assets/fonts/Inter-SemiBold.ttf"));
     add(&mut fonts, "JetBrainsMono", include_bytes!("../../../assets/fonts/JetBrainsMono-Regular.ttf"));
     let fallback: Vec<String> = fonts.families.get(&FontFamily::Proportional).cloned().unwrap_or_default();
-    let mut prop = vec!["SourceSans3".to_string()];
+    let mut prop = vec!["Inter".to_string()];
     prop.extend(fallback.clone());
     fonts.families.insert(FontFamily::Proportional, prop);
-    let mut semi = vec!["SourceSans3-Semibold".to_string()];
+    let mut semi = vec!["Inter-SemiBold".to_string()];
     semi.extend(fallback.clone());
     fonts.families.insert(FontFamily::Name(FONT_UI_SEMIBOLD.into()), semi);
-    let mut ui = vec!["SourceSans3".to_string()];
+    let mut ui = vec!["Inter".to_string()];
     ui.extend(fallback.clone());
     fonts.families.insert(FontFamily::Name(FONT_UI.into()), ui);
     let mut mono = vec!["JetBrainsMono".to_string()];
