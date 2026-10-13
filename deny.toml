@@ -1,0 +1,58 @@
+# cargo-deny : configuration écrite par Evora (fork tazerty/vectorcraft, EVORA-SIN-04, CI).
+# L'amont n'a pas de deny.toml. Portée : le graphe du binaire web livré (apps/vectorcraft-web,
+# cible wasm32), sans les dépendances de développement. La CI lance :
+#   cargo deny --manifest-path apps/vectorcraft-web/Cargo.toml --locked check
+# Rien n'est relâché en silence : les réglages ci-dessous sont les valeurs par défaut ou plus
+# stricts, et toute exception porte sa raison écrite (aucune pour l'instant).
+
+[graph]
+targets = ["wasm32-unknown-unknown"]
+exclude-dev = true
+all-features = false
+no-default-features = false
+
+[output]
+feature-depth = 1
+
+[advisories]
+# Une vulnérabilité est toujours une erreur ; on y ajoute les avis « non maintenu » et « non sûr »
+# sur tout le graphe, et les versions retirées (yanked) du registre.
+unmaintained = "all"
+unsound = "all"
+yanked = "deny"
+ignore = []
+
+[licenses]
+# Licences rencontrées dans le graphe web ; toute autre licence fait échouer la porte.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "BSL-1.0",
+    "Unicode-3.0",
+    "OFL-1.1",
+    "LicenseRef-UFL-1.0",
+    "CC0-1.0",
+]
+confidence-threshold = 0.8
+exceptions = []
+unused-allowed-license = "warn"
+
+[licenses.private]
+ignore = false
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+highlight = "all"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# craft-libs (craft-ui, craft-print), épinglé par révision dans Cargo.toml et Cargo.lock.
+allow-git = ["https://github.com/storytold/craft-libs"]
