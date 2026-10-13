@@ -20,7 +20,8 @@ feature-depth = 1
 unmaintained = "all"
 unsound = "all"
 yanked = "deny"
-# Exceptions motivées (relevées au run 38367552128, Cargo.lock du tag amont v0.10.0 inchangé).
+# Exceptions motivées (relevées au run 38367552128, Cargo.lock du tag amont v0.10.0 ; seul écart :
+# ruzstd 0.9.0 → 0.9.1, correctif de la vulnérabilité RUSTSEC-2026-0344, EVORA-SIN-20).
 # Aucune n'est une vulnérabilité ; à réexaminer à chaque montée de version.
 ignore = [
     { id = "RUSTSEC-2026-0206", reason = "rustybuzz 0.20.1 non maintenu (avis informatif, aucun correctif publié) ; dépendance transitive de krilla 0.8.2 (export PDF, vectorcraft-pdf L3) ; son remplacement relève de krilla et de l'amont" },
