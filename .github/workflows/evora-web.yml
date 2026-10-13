@@ -13,8 +13,8 @@
 #   job licences : cargo-deny (licences, avis de sécurité, interdits, sources) et cargo-about
 #                  (LICENSES/THIRD-PARTY-LICENSES.txt) ;
 #   job web      : marques ArtCraft dans le bundle, fichiers d'hébergement, termes sensibles (E9),
-#                  empreintes CSP, test de fumée Chrome depuis une autre origine ; audit des émojis
-#                  (E10) en information jusqu'au patch E10. Sorties .br et .gz, mesure de taille.
+#                  émojis des catalogues affichés (E10), empreintes CSP, test de fumée Chrome depuis
+#                  une autre origine avec langue imposée (E3). Sorties .br et .gz, mesure de taille.
 # Le zip et l'artefact ne sont produits que si toutes les portes sont vertes.
 name: Evora web
 
@@ -345,9 +345,9 @@ jobs:
         if: ${{ !cancelled() && steps.pkg.outcome == 'success' }}
         run: python3 -I packaging/evora/gates.py terms . | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: Audit des émojis E10 (information jusqu'au patch E10)
+      - name: Porte « émojis des catalogues affichés » E10 (bloquante)
         if: ${{ !cancelled() && steps.pkg.outcome == 'success' }}
-        run: python3 -I packaging/evora/gates.py emoji . | tee -a "$GITHUB_STEP_SUMMARY"
+        run: python3 -I packaging/evora/gates.py emoji . --blocking | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Empreintes CSP (csp-hashes.txt)
         if: ${{ !cancelled() && steps.pkg.outcome == 'success' }}
@@ -357,6 +357,9 @@ jobs:
         if: ${{ !cancelled() && steps.pkg.outcome == 'success' }}
         env:
           PKG: ${{ steps.pkg.outputs.pkg }}
+          # Patch E3 : la langue imposée par l'hôte, et la correspondance zh-Hans → zh-hans.
+          SMOKE_LANG: zh-Hans
+          SMOKE_EXPECT_LANG: zh-hans
         run: |
           set +e
           set -u

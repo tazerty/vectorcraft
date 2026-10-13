@@ -11,6 +11,9 @@
 // imprimées, sans bloquer. Le démarrage à froid est mesuré dans l'iframe (performance.now() au
 // retrait du voile), puis une capture d'écran donne une mesure du rendu (couleurs distinctes).
 //
+// Langue imposée (patch E3) : SMOKE_LANG est passé au moteur en `?lang=` et, si SMOKE_EXPECT_LANG
+// est donné, l'attribut `lang` de la page du moteur doit valoir ce code (porte bloquante).
+//
 // Usage : node smoke.mjs <site> <rapport.json> [binaire chrome]
 
 import { spawn } from 'node:child_process';
@@ -32,6 +35,9 @@ const SETTLE_MS = 3_000;
 const POLL_MS = 100;
 const VIEW = { width: 1280, height: 800 };
 const BACKGROUND = [0x26, 0x26, 0x26]; // fond de index.html
+const SMOKE_LANG = process.env.SMOKE_LANG || '';
+const SMOKE_EXPECT_LANG = process.env.SMOKE_EXPECT_LANG || '';
+const ENGINE_QUERY = SMOKE_LANG ? `?lang=${encodeURIComponent(SMOKE_LANG)}` : '';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -70,6 +76,7 @@ const report = {
   requestsA: 0,
   bytesA: 0,
   pixels: null,
+  lang: { requested: SMOKE_LANG || null, expected: SMOKE_EXPECT_LANG || null, got: null },
   timeline: { contextA: null, firstProbe: null, polls: 0 },
   crashed: false,
   chromeStderrTail: [],
@@ -172,7 +179,7 @@ function parentHandler(originA) {
 <html lang="fr"><head><meta charset="utf-8"><title>Evora : page parente du test de fumée</title>
 <link rel="icon" href="data:,">
 <style>html,body{margin:0;background:#fff}iframe{display:block;border:0;width:${VIEW.width}px;height:${VIEW.height}px}</style>
-</head><body><iframe id="engine" src="${originA}/index.html" title="moteur"
+</head><body><iframe id="engine" src="${originA}/index.html${ENGINE_QUERY}" title="moteur"
 allow="fullscreen; clipboard-read; clipboard-write"
 sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"></iframe></body></html>`;
   return async (req, res) => {
@@ -434,6 +441,7 @@ const PROBE = `(() => {
     clientHeight: c ? c.clientHeight : 0,
     t: Math.round(performance.now()),
     title: document.title,
+    htmlLang: document.documentElement.lang,
     href: location.href,
     webgpu: !!navigator.gpu,
   });
@@ -510,6 +518,10 @@ async function main() {
   if (report.failedRequestsA.length) report.reasons.push(`${report.failedRequestsA.length} requête(s) en échec sur l'origine A`);
   const p = report.probe;
   if (report.ready && !(p && p.canvas && p.width > 0 && p.height > 0)) report.reasons.push('canvas absent ou sans dimension');
+  report.lang.got = p ? p.htmlLang : null;
+  if (SMOKE_EXPECT_LANG && report.lang.got !== SMOKE_EXPECT_LANG) {
+    report.reasons.push(`langue imposée : attendu « ${SMOKE_EXPECT_LANG} », obtenu « ${report.lang.got} »`);
+  }
   report.ok = report.reasons.length === 0;
 
   await send('Browser.close').catch(() => {});
