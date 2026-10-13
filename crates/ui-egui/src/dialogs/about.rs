@@ -45,7 +45,8 @@ pub(super) fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     app.ui.about = open;
 }
 
-/// The About tab: mark, version, community links, licences and the GPU in use.
+/// The About tab: mark, version, project links, licences and the GPU in use. Evora (E1): no
+/// ArtCraft mention here; the plain-text credit lives in the licence notices shipped beside the app.
 fn about_tab(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
     ui.set_width(380.0);
     ui.horizontal(|ui| {
@@ -64,7 +65,7 @@ fn about_tab(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
     ui.add_space(12.0);
     ui.label(
         egui::RichText::new(tl!(
-            "Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft."
+            "MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft."
         ))
         .size(11.0),
     );

@@ -20,6 +20,7 @@ Generated-in-code art is original and has no file to list. This covers the defau
 | `docs/brand/artcraft-mark-black.svg` | ArtCraft team (project owner) | https://getartcraft.com/ | ArtCraft trademark, see docs/brand/LICENSE-brand.txt (not open source) | Used in README only; not shipped in the app |
 | `docs/brand/artcraft-mark.png` | ArtCraft team (project owner) | https://getartcraft.com/ | ArtCraft trademark, see docs/brand/LICENSE-brand.txt (not open source) | Used in README only; not shipped in the app |
 | `docs/brand/artcraft-mark.svg` | ArtCraft team (project owner) | https://getartcraft.com/ | ArtCraft trademark, see docs/brand/LICENSE-brand.txt (not open source) | Used in README only; not shipped in the app |
+| `assets/evora/sinopia-pro-mark-128.png` | Evora (fork tazerty/vectorcraft, patch EVORA-SIN-03 E1) | Original geometric mark drawn procedurally (indigo #4F46E5 rounded tile, white cubic curve with its anchors and handles), 128 px, 4×4 supersampled | MIT OR Apache-2.0 | Web brand mark (`crates/ui-egui/src/brand.rs`) in place of the app icon in Evora builds |
 | `assets/app-icon/LICENSE.txt` | (licence/readme text) | VectorCraft | MIT OR Apache-2.0 |  |
 | `assets/app-icon/README.md` | (licence/readme text) | VectorCraft | MIT OR Apache-2.0 |  |
 | `assets/app-icon/hicolor/128x128/apps/ai.storyteller.vectorcraft.png` | Project owner (ArtCraft team) | Original artwork drawn in ArtCraft for VectorCraft, vectorised and rendered by `packaging/icons.sh` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon (engraved dragon) |
