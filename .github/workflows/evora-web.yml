@@ -1,0 +1,262 @@
+# Evora : build web (wasm) de la branche evora/<tag-amont> du fork tazerty/vectorcraft.
+#
+# Écrit par Evora (patch EVORA-SIN-00) à partir de packaging/web/package.sh et de
+# docs/development.md (« Web build ») de l'amont storytold/vectorcraft (MIT OR Apache-2.0).
+# Rien n'est copié de storytold/craft-common-actions. Aucune action tierce : seulement
+# actions/checkout, actions/cache et actions/upload-artifact, épinglées par SHA complet.
+# Outils de build épinglés et vérifiés par SHA-256 ; Trunk tourne hors ligne (--offline),
+# il ne télécharge donc rien lui-même et doit trouver les outils épinglés dans le PATH.
+# Versions relevées sur le job « Web (wasm) » de la release amont v0.10.0
+# (run 38236402476) : rustc 1.99.0, trunk 0.21.14, wasm-bindgen 0.2.129, wasm-opt version_123.
+name: Evora web
+
+on:
+  push:
+    branches: ["evora/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evora-web-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: 1
+  VECTORCRAFT_BUILD_SHA: ${{ github.sha }}
+  # Pas de rust-toolchain(.toml) dans le dépôt ; rust-version = 1.95 dans Cargo.toml.
+  RUST_TOOLCHAIN: 1.99.0
+  TRUNK_VERSION: 0.21.14
+  TRUNK_SHA256: f2b4680cd239693a646a2795e4633c625328d7b2a044fbe749fa3a2fe9e7036b
+  # Doit égaler la version de wasm-bindgen du Cargo.lock (Trunk l'exige).
+  WASM_BINDGEN_VERSION: 0.2.129
+  WASM_BINDGEN_SHA256: 82d12bb940e2d4e72e0d5605387fc1b8ca179044e012b620f0ce4e7440e8320e
+  BINARYEN_VERSION: version_123
+  BINARYEN_SHA256: e959f2170af4c20c552e9de3a0253704d6a9d2766e8fdb88e4d6ac4bae9388fe
+  # craft-fonts : même commit que le job web de release.yml au tag amont.
+  CRAFT_FONTS_REF: 3d9ab3a132ed0eff457e424226a435a901da30d3
+
+jobs:
+  web:
+    name: Web (wasm) Evora
+    runs-on: ubuntu-latest
+    # Le job web de la release amont dure environ 12 minutes avec cache ; marge pour un build à froid.
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Checkout craft-fonts (commit épinglé)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: storytold/craft-fonts
+          ref: ${{ env.CRAFT_FONTS_REF }}
+          path: craft-fonts
+          persist-credentials: false
+
+      - name: Cache cargo
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: evora-web-${{ runner.os }}-rust-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            evora-web-${{ runner.os }}-rust-${{ env.RUST_TOOLCHAIN }}-
+
+      - name: Toolchain Rust (rustup, version épinglée)
+        run: |
+          set -euo pipefail
+          rustup --version
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target wasm32-unknown-unknown --no-self-update
+          rustup default "$RUST_TOOLCHAIN"
+          rustc -Vv
+          cargo -V
+          case "$(rustc -V)" in
+            "rustc $RUST_TOOLCHAIN "*) ;;
+            *) echo "::error::rustc n'est pas $RUST_TOOLCHAIN"; exit 1 ;;
+          esac
+          INSTALLED="$(rustup target list --installed)"
+          case "$INSTALLED" in
+            *wasm32-unknown-unknown*) ;;
+            *) echo "::error::cible wasm32-unknown-unknown absente"; exit 1 ;;
+          esac
+
+      - name: Outils de build (binaires de release vérifiés par SHA-256)
+        run: |
+          set -euo pipefail
+          TOOLS="$RUNNER_TEMP/evora-tools"
+          DL="$RUNNER_TEMP/evora-dl"
+          mkdir -p "$TOOLS/bin" "$TOOLS/binaryen" "$DL/wasm-bindgen"
+          fetch() { # url sha256 fichier
+            curl --proto '=https' --tlsv1.2 -fsSL --retry 3 -o "$DL/$3" "$1"
+            echo "$2  $DL/$3" | sha256sum -c -
+          }
+          fetch "https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz" \
+            "$TRUNK_SHA256" trunk.tar.gz
+          tar -xzf "$DL/trunk.tar.gz" -C "$TOOLS/bin" trunk
+          fetch "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/${WASM_BINDGEN_VERSION}/wasm-bindgen-${WASM_BINDGEN_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+            "$WASM_BINDGEN_SHA256" wasm-bindgen.tar.gz
+          tar -xzf "$DL/wasm-bindgen.tar.gz" -C "$DL/wasm-bindgen"
+          install -m 0755 "$(find "$DL/wasm-bindgen" -type f -name wasm-bindgen | head -n 1)" "$TOOLS/bin/wasm-bindgen"
+          fetch "https://github.com/WebAssembly/binaryen/releases/download/${BINARYEN_VERSION}/binaryen-${BINARYEN_VERSION}-x86_64-linux.tar.gz" \
+            "$BINARYEN_SHA256" binaryen.tar.gz
+          tar -xzf "$DL/binaryen.tar.gz" -C "$TOOLS/binaryen" --strip-components=1
+          rm -rf "$DL"
+          echo "$TOOLS/bin" >> "$GITHUB_PATH"
+          echo "$TOOLS/binaryen/bin" >> "$GITHUB_PATH"
+          "$TOOLS/bin/trunk" --version
+          "$TOOLS/bin/wasm-bindgen" --version
+          "$TOOLS/binaryen/bin/wasm-opt" --version
+
+      - name: Dépendances cargo (Cargo.lock verrouillé)
+        run: cargo fetch --locked
+
+      - name: Build web release (trunk build --release, hors ligne)
+        working-directory: apps/vectorcraft-web
+        env:
+          CRAFT_FONTS_DIR: ${{ github.workspace }}/craft-fonts
+          CRAFT_FONTS_REQUIRED: "1"
+        run: |
+          set -euo pipefail
+          command -v trunk wasm-bindgen wasm-opt
+          trunk build --release --locked --offline
+
+      - name: Empaquetage du site statique
+        id: pkg
+        env:
+          CRAFT_FONTS_DIR: ${{ github.workspace }}/craft-fonts
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          SITE="dist/web"
+          [ -f "$SITE/index.html" ] || { echo "::error::$SITE/index.html absent"; exit 1; }
+          # Même contrôle que packaging/web/package.sh : URLs relatives seulement (public_url = "./").
+          if grep -Eq '(src|href)="/[^/]' "$SITE/index.html"; then
+            echo "::error::$SITE/index.html contient des URLs absolues à la racine"
+            exit 1
+          fi
+          VERSION="$(awk '/^\[/ { in_pkg = ($0 == "[workspace.package]"); next }
+            in_pkg && $1 == "version" { gsub(/[" ]/, "", $3); print $3; exit }' Cargo.toml)"
+          [ -n "$VERSION" ] || { echo "::error::version introuvable dans Cargo.toml"; exit 1; }
+          TAG="v$VERSION"
+          case "$REF_NAME" in
+            evora/*) [ "$REF_NAME" = "evora/$TAG" ] || echo "::warning::branche $REF_NAME différente de evora/$TAG" ;;
+          esac
+          # Nom amont tant que le patch E1 (retrait des marques ArtCraft) n'est pas posé.
+          NAME="evora-vectorcraft-web-$TAG"
+          WORK="$RUNNER_TEMP/evora-pkg"
+          OUT="$RUNNER_TEMP/evora-out"
+          rm -rf "$WORK" "$OUT"
+          mkdir -p "$WORK/$NAME/LICENSES" "$OUT"
+          cp -R "$SITE/." "$WORK/$NAME/"
+          # Pas d'exemples de configuration serveur (_headers, .htaccess) : l'hébergement est
+          # l'affaire d'Evora, et le provisionnement refuse ces fichiers.
+          cp LICENSE-MIT LICENSE-APACHE NOTICE ASSETS.md "$WORK/$NAME/LICENSES/"
+          for ofl in "$CRAFT_FONTS_DIR"/fonts/*/OFL.txt; do
+            [ -f "$ofl" ] || continue
+            cp "$ofl" "$WORK/$NAME/LICENSES/OFL-$(basename "$(dirname "$ofl")").txt"
+          done
+          {
+            echo "upstream=storytold/vectorcraft"
+            echo "upstream_tag=$TAG"
+            echo "fork=$GITHUB_REPOSITORY"
+            echo "branch=$REF_NAME"
+            echo "commit=$GITHUB_SHA"
+            echo "run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "rustc=$(rustc -V)"
+            echo "trunk=$(trunk --version)"
+            echo "wasm-bindgen=$(wasm-bindgen --version)"
+            echo "wasm-opt=$(wasm-opt --version)"
+            echo "craft-fonts=$CRAFT_FONTS_REF"
+          } > "$WORK/$NAME/EVORA-BUILD.txt"
+          (cd "$WORK" && zip -qrX9 "$OUT/$NAME.zip" "$NAME")
+          (cd "$OUT" && sha256sum "$NAME.zip" > SHA256SUMS)
+          cat "$OUT/SHA256SUMS"
+          ls -l "$OUT"
+          {
+            echo "name=$NAME"
+            echo "pkg=$WORK/$NAME"
+            echo "out=$OUT"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publication de l'artefact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.pkg.outputs.name }}
+          path: |
+            ${{ steps.pkg.outputs.out }}/${{ steps.pkg.outputs.name }}.zip
+            ${{ steps.pkg.outputs.out }}/SHA256SUMS
+          if-no-files-found: error
+
+      - name: Garde-fous (non bloquants, première passe)
+        if: ${{ !cancelled() && steps.pkg.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          PKG: ${{ steps.pkg.outputs.pkg }}
+          OUT: ${{ steps.pkg.outputs.out }}
+          NAME: ${{ steps.pkg.outputs.name }}
+        run: |
+          set -uo pipefail
+          count() { # motif [options grep] : occurrences dans le bundle, hors LICENSES/ et EVORA-BUILD.txt
+            local pat="$1"; shift
+            find "$PKG" -type f ! -path "$PKG/LICENSES/*" ! -name EVORA-BUILD.txt -print0 \
+              | xargs -0 grep -a -o "$@" -e "$pat" 2>/dev/null | wc -l
+          }
+          per_file() { # motif [options grep] : occurrences par fichier
+            local pat="$1" f n; shift
+            find "$PKG" -type f ! -path "$PKG/LICENSES/*" ! -name EVORA-BUILD.txt -print0 \
+              | while IFS= read -r -d '' f; do
+                  n="$(grep -a -o "$@" -e "$pat" "$f" 2>/dev/null | wc -l)"
+                  [ "$n" -gt 0 ] && echo "  - \`${f#"$PKG"/}\` : $n"
+                done
+            return 0
+          }
+          {
+            echo "## Evora : garde-fous (non bloquants pour cette première passe)"
+            echo
+            echo "Artefact \`$NAME.zip\` : $(stat -c %s "$OUT/$NAME.zip") octets"
+            echo
+            echo '```'
+            cat "$OUT/SHA256SUMS"
+            echo '```'
+            echo
+            echo "### Fichiers d'hébergement dans l'artefact (cible : aucun)"
+            HOSTING="$(find "$PKG" \( -name _headers -o -name .htaccess -o -name '*.conf' -o -name '*.php' \) -print | sed "s|^$PKG/||")"
+            HIDDEN="$(find "$PKG" -name '.*' ! -path "$PKG" -print | sed "s|^$PKG/||")"
+            LINKS="$(find "$PKG" -type l -print | sed "s|^$PKG/||")"
+            echo "- _headers, .htaccess, *.conf, *.php : ${HOSTING:-aucun}"
+            echo "- fichiers ou dossiers cachés : ${HIDDEN:-aucun}"
+            echo "- liens symboliques : ${LINKS:-aucun}"
+            echo
+            echo "### Taille du .wasm"
+            find "$PKG" -name '*.wasm' -print0 | while IFS= read -r -d '' w; do
+              echo "- \`${w#"$PKG"/}\` : $(stat -c %s "$w") octets ; gzip -9 : $(gzip -9 -c "$w" | wc -c) octets"
+            done
+            echo "- site complet (hors LICENSES/) : $(du -sb --exclude=LICENSES "$PKG" | cut -f1) octets"
+            echo
+            echo "### Marques dans le bundle (mesure de la cible E1 : 0), hors LICENSES/"
+            echo "| Motif | Occurrences |"
+            echo "|---|---|"
+            echo "| \`ArtCraft\` (casse exacte) | $(count ArtCraft) |"
+            echo "| \`artcraft\` (toute casse) | $(count artcraft -i) |"
+            echo "| \`getartcraft\` (toute casse) | $(count getartcraft -i) |"
+            echo "| \`discord.gg\` | $(count 'discord\.gg' -i) |"
+            echo "| \`discord\` (toute casse) | $(count discord -i) |"
+            echo "| \`VectorCraft\` (casse exacte, information) | $(count VectorCraft) |"
+            echo
+            echo "Détail \`artcraft\` (toute casse) par fichier :"
+            per_file artcraft -i
+            echo
+            echo "### Contenu de l'artefact"
+            echo '```'
+            (cd "$PKG/.." && find "$NAME" -type f -printf '%s\t%p\n' | sort -k2)
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
