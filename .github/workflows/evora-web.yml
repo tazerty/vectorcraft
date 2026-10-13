@@ -209,6 +209,9 @@ jobs:
           set +e
           set -u -o pipefail
           sha() { sha256sum "$1" 2>/dev/null | cut -d' ' -f1; }
+          hosting() { find "$1" \( -name _headers -o -name .htaccess -o -name '*.conf' -o -name '*.php' \) -print | sed "s|^$1/||"; }
+          hidden() { find "$1" -name '.*' ! -path "$1" -print | sed "s|^$1/||"; }
+          links() { find "$1" -type l -print | sed "s|^$1/||"; }
           count() { # motif [options grep] : occurrences dans le bundle, hors LICENSES/ et EVORA-BUILD.txt
             local pat="$1"; shift
             find "$PKG" -type f ! -path "$PKG/LICENSES/*" ! -name EVORA-BUILD.txt -print0 \
@@ -233,12 +236,19 @@ jobs:
             echo '```'
             echo
             echo "### Fichiers d'hébergement dans l'artefact (cible : aucun)"
-            HOSTING="$(find "$PKG" \( -name _headers -o -name .htaccess -o -name '*.conf' -o -name '*.php' \) -print | sed "s|^$PKG/||")"
-            HIDDEN="$(find "$PKG" -name '.*' ! -path "$PKG" -print | sed "s|^$PKG/||")"
-            LINKS="$(find "$PKG" -type l -print | sed "s|^$PKG/||")"
+            HOSTING="$(hosting "$PKG")"
+            HIDDEN="$(hidden "$PKG")"
+            LINKS="$(links "$PKG")"
             echo "- _headers, .htaccess, *.conf, *.php : ${HOSTING:-aucun}"
             echo "- fichiers ou dossiers cachés : ${HIDDEN:-aucun}"
             echo "- liens symboliques : ${LINKS:-aucun}"
+            # Témoin sabordé : un « aucun » ne vaut que si les mêmes détecteurs voient ces fichiers-là.
+            T="$RUNNER_TEMP/evora-temoin"
+            rm -rf "$T"
+            mkdir -p "$T/sous"
+            touch "$T/_headers" "$T/sous/.htaccess" "$T/site.conf" "$T/x.php"
+            ln -s site.conf "$T/lien"
+            echo "- témoin sabordé (attendu 4 / 1 / 1) : $(hosting "$T" | wc -l) / $(hidden "$T" | wc -l) / $(links "$T" | wc -l)"
             echo
             echo "### Taille du .wasm"
             find "$PKG" -name '*.wasm' -print0 | while IFS= read -r -d '' w; do
