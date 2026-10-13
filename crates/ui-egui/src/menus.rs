@@ -2656,9 +2656,8 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
         (
             "Help",
             vec![
-                // Evora (E1): no ArtCraft Discord, website or app page items.
-                c("VectorCraft on GitHub", "help.github"),
-                Sep,
+                // Evora (E1, E7): no community or project links (the embedded editor opens no
+                // page of its own).
                 c("Search Commands…", "help.commandPalette"),
                 todos("VectorCraft Help…", "F1"),
                 Sep,

@@ -1967,10 +1967,7 @@ fn home(app: &mut VectorcraftApp, ui: &mut Ui, rect: egui::Rect) {
             }
         }
     });
-    ui.add_space(28.0);
-    ui.label(egui::RichText::new(tl!("Community")).font(theme::semibold(14.0)).color(t.text));
-    ui.add_space(10.0);
-    crate::community::links(app, ui);
+    // Evora (E1, E7): no Community section (no outside links in the embedded editor).
 }
 
 /// The Home screen's Recent Files (#663): the first of File › Open Recent Files, each its name and

@@ -442,6 +442,10 @@ fn services(inbox: Inbox, place_inbox: PlaceInbox, ctx: egui::Context, locks: Op
         recovery_store: Some(Arc::new(BrowserStore { locks })),
         // File → Print: the browser's print dialog.
         print: Some(Box::new(BrowserPrint)),
+        // Evora (patch E7): the embedded editor opens no page of its own, whatever asks (a Help
+        // link, a contributor's profile, an object's URL read from a document): the host page
+        // decides what to open. Without this service egui would open a new tab.
+        open_url: Some(Box::new(|url: &str| log::warn!("vectorcraft-web: not opening {url}: links are disabled in this build"))),
         ..Default::default()
     }
 }

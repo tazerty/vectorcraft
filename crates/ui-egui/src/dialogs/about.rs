@@ -45,8 +45,9 @@ pub(super) fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     app.ui.about = open;
 }
 
-/// The About tab: mark, version, project links, licences and the GPU in use. Evora (E1): no
-/// ArtCraft mention here; the plain-text credit lives in the licence notices shipped beside the app.
+/// The About tab: mark, version, licences and the GPU in use. Evora (E1, E7): no ArtCraft
+/// mention and no links here; the plain-text credit lives in the licence notices shipped beside
+/// the app.
 fn about_tab(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
     ui.set_width(380.0);
     ui.horizontal(|ui| {
@@ -60,8 +61,7 @@ fn about_tab(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
             ));
         });
     });
-    ui.add_space(12.0);
-    crate::community::links(app, ui);
+    // Evora (E7): no project links in the embedded editor.
     ui.add_space(12.0);
     ui.label(
         egui::RichText::new(tl!(
