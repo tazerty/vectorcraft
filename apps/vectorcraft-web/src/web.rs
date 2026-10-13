@@ -142,7 +142,7 @@ async fn run(host: Host, canvas: web_sys::HtmlCanvasElement, moving: Option<Movi
 /// The runner's options: wgpu (WebGPU where available, else WebGL2; `?webgl` forces WebGL2).
 fn web_options() -> eframe::WebOptions {
     let mut options = eframe::WebOptions::default();
-    if query().contains("webgl")
+    if query_flag("webgl")
         && let eframe::egui_wgpu::WgpuSetup::CreateNew(create) = &mut options.wgpu_options.wgpu_setup
     {
         create.instance_descriptor.backends = eframe::wgpu::Backends::GL;
@@ -150,18 +150,32 @@ fn web_options() -> eframe::WebOptions {
     options
 }
 
-/// Tell the UI the browser's languages (`?lang=es` in the address first, as `VECTORCRAFT_LOCALE`
-/// does on the desktop) before the first frame, so the Automatic interface language follows the
-/// browser; and show the loading text in that language.
+/// Tell the UI the browser's languages before the first frame, so the Automatic interface
+/// language follows the browser (the web keeps no preferences between visits: it starts on
+/// Automatic); and show the loading text in that language.
+///
+/// Evora (patch E3): a `?lang=` given by the host page is authoritative. A code the UI has, in any
+/// case or form (`zh-Hans`, `zh-CN` → zh-hans), is the interface language; any other (`pt`, whose
+/// variant is not chosen yet, or a language without a catalog) gives English, never the browser's
+/// own languages. The page's `lang` attribute follows. Without `?lang=`, as before.
 fn detect_language() {
-    let mut tags: Vec<String> = query_param("lang").into_iter().collect();
-    if let Some(navigator) = web_sys::window().map(|w| w.navigator()) {
+    let imposed = query_param("lang");
+    let mut tags: Vec<String> = imposed.iter().cloned().collect();
+    if imposed.is_none()
+        && let Some(navigator) = web_sys::window().map(|w| w.navigator())
+    {
         tags.extend(navigator.languages().iter().filter_map(|v| v.as_string()));
         tags.extend(navigator.language());
     }
     i18n::set_system_locales(tags.as_slice());
+    let lang = i18n::system_lang();
+    if let Some(root) = web_sys::window().and_then(|w| w.document()).and_then(|d| d.document_element())
+        && let Err(e) = root.set_attribute("lang", lang.code())
+    {
+        log::warn!("couldn't set the page language: {e:?}");
+    }
     if let Some(el) = element(LOADING_ID) {
-        el.set_text_content(Some(i18n::message(i18n::system_lang(), "Loading VectorCraft…").as_str()));
+        el.set_text_content(Some(i18n::message(lang, "Loading VectorCraft…").as_str()));
     }
 }
 
@@ -169,6 +183,12 @@ fn detect_language() {
 fn query_param(name: &str) -> Option<String> {
     let query = query();
     query.trim_start_matches('?').split('&').find_map(|kv| kv.strip_prefix(name)?.strip_prefix('=').map(str::to_string)).filter(|v| !v.is_empty())
+}
+
+/// Whether the address's query has the flag `name` (`?webgl`, `?webgl=1`), matched by name: a value
+/// that merely contains it (`?lang=webgl`) is not the flag (Evora, patch E3).
+fn query_flag(name: &str) -> bool {
+    query().trim_start_matches('?').split('&').any(|kv| kv.split('=').next() == Some(name))
 }
 
 fn query() -> String {

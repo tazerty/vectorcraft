@@ -12,7 +12,8 @@
 //! - dropped files are read asynchronously by `web::WebShell` and delivered through the inbox.
 //!
 //! URL query flags: `?webgl` forces the WebGL2 backend instead of WebGPU; `?lang=es` (any
-//! language code) stands in for the browser's languages when the interface language is Automatic.
+//! language code) stands in for the browser's languages when the interface language is Automatic
+//! (Evora, patch E3: a given `?lang=` is authoritative, English when the UI has no such language).
 
 #[cfg(target_arch = "wasm32")]
 mod fonts;
