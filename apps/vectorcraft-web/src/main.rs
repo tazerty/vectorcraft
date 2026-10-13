@@ -14,7 +14,8 @@
 //!   hover, palm rejection, fingers navigate once a pen has been seen).
 //!
 //! URL query flags: `?webgl` forces the WebGL2 backend instead of WebGPU; `?lang=es` (any
-//! language code) stands in for the browser's languages when the interface language is Automatic.
+//! language code) stands in for the browser's languages when the interface language is Automatic
+//! (Evora, patch E3: a given `?lang=` is authoritative, English when the UI has no such language).
 
 #[cfg(target_arch = "wasm32")]
 mod api;
