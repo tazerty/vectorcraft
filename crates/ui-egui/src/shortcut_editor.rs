@@ -913,7 +913,7 @@ fn record(d: &mut Dialog, km: &mut Keymap, key: &str, chord: &str) {
                 d.fields.insert(
                     "__message".into(),
                     json!(crate::i18n::fmt(
-                        tl!("⚠ {chord} was already used by {names} — it has been removed there."),
+                        tl!("{chord} was already used by {names} — it has been removed there."),
                         &[("chord", &menus::pretty_shortcut(chord)), ("names", &names.join(", "))]
                     )),
                 );

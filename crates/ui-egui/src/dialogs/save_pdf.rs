@@ -786,7 +786,7 @@ fn summary(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) {
         Ok(v) => v,
         Err(e) => {
             heading(ui, tl!("Error"));
-            ui.label(egui::RichText::new(format!("⚠ {e}")).color(t.text));
+            ui.label(egui::RichText::new(format!("{e}")).color(t.text));
             return;
         }
     };
@@ -823,7 +823,7 @@ pub(super) fn warning_rows(ui: &mut egui::Ui, warnings: &[Value]) {
         note(ui, tl!("None."));
     }
     for w in warnings {
-        ui.label(egui::RichText::new(format!("⚠ {}", w.as_str().unwrap_or_default())).color(t.text));
+        ui.label(egui::RichText::new(format!("• {}", w.as_str().unwrap_or_default())).color(t.text));
     }
 }
 

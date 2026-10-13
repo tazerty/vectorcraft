@@ -135,10 +135,10 @@ fn details(ui: &mut egui::Ui, t: &Tokens, preset: &vectorcraft_pdf::PdfPreset, b
     });
     ui.add_space(6.0);
     if let Err(e) = preset.settings.check() {
-        dim(ui, &format!("⚠ {e}"));
+        dim(ui, &format!("{e}"));
     }
     for w in preset.settings.warnings() {
-        dim(ui, &format!("⚠ {w}"));
+        dim(ui, &format!("• {w}"));
     }
     if builtin {
         ui.add_space(6.0);

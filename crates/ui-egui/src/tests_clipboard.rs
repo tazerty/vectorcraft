@@ -167,12 +167,12 @@ fn the_layers_panel_menu_toggles_paste_remembers_layers() {
     };
     let item = |texts: &[(String, egui::Rect)]| texts.iter().find(|(t, _)| t.ends_with("Paste Remembers Layers")).cloned().unwrap();
     let (label, r) = item(&frame(&mut app, vec![]));
-    assert!(!label.starts_with('✓'));
+    assert!(!label.starts_with('•'));
     let button =
         |pressed| egui::Event::PointerButton { pos: r.center(), button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
     for e in [egui::Event::PointerMoved(r.center()), button(true), button(false)] {
         frame(&mut app, vec![e]);
     }
     assert!(app.session.active().unwrap().doc.paste_remembers_layers);
-    assert!(item(&frame(&mut app, vec![])).0.starts_with('✓'), "checked");
+    assert!(item(&frame(&mut app, vec![])).0.starts_with('•'), "checked");
 }

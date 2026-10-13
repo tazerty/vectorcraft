@@ -385,10 +385,10 @@ mod tests {
             let texts = frame(&mut app);
             assert!(texts.iter().any(|t| t == "Knockout Group") && texts.iter().any(|t| t == "Opacity & Mask Define Knockout Shape"));
         }
-        assert!(frame(&mut app).iter().any(|t| t.ends_with(" Page Knockout Group") && !t.starts_with('✓')));
+        assert!(frame(&mut app).iter().any(|t| t.ends_with(" Page Knockout Group") && !t.starts_with('•')));
         run(&mut app, "transparency.togglePageKnockoutGroup", json!({}));
         run(&mut app, "transparency.togglePageIsolatedBlending", json!({}));
         let texts = frame(&mut app);
-        assert!(texts.iter().any(|t| t == "✓ Page Knockout Group") && texts.iter().any(|t| t == "✓ Page Isolated Blending"), "{texts:?}");
+        assert!(texts.iter().any(|t| t == "• Page Knockout Group") && texts.iter().any(|t| t == "• Page Isolated Blending"), "{texts:?}");
     }
 }
