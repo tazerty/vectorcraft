@@ -367,6 +367,9 @@ def cmd_smoke_summary(path):
     print(f"- contexte de l'iframe vu à {tl.get('contextA')} ms ; sondages : {tl.get('polls')}")
     print(f"- canvas : présent={p.get('canvas')} ; {p.get('width')}×{p.get('height')} px (affiché {p.get('clientWidth')}×{p.get('clientHeight')}) ; titre : « {p.get('title')} » ; `navigator.gpu` : {p.get('webgpu')}")
     print(f"- moteur graphique annoncé par le moteur : {r.get('backend') or 'non vu dans la console'}")
+    lang = r.get("lang") or {}
+    if lang.get("requested"):
+        print(f"- langue imposée (E3) : `?lang={lang.get('requested')}` ; attribut `lang` attendu « {lang.get('expected')} », obtenu « {lang.get('got')} »")
     print(f"- exceptions de page : {len(r.get('exceptions', []))} ; requêtes en échec sur A : {len(r.get('failedRequestsA', []))} ; hors A : {len(r.get('failedRequestsOther', []))} ; erreurs console : {len(r.get('consoleErrors', []))} ; plantage : {r.get('crashed')}")
     print(f"- requêtes servies par A : {r.get('requestsA')} ({r.get('bytesA')} octets, non compressés)")
     if "distinctColors" in px:
