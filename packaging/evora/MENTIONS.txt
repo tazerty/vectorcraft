@@ -1,0 +1,21 @@
+Sinopia Pro (Evora) : mentions
+==============================
+
+Sinopia Pro est basé sur VectorCraft par l'équipe ArtCraft.
+Sinopia Pro is based on VectorCraft by the ArtCraft team.
+
+VectorCraft : https://github.com/storytold/vectorcraft (MIT OR Apache-2.0).
+
+Cette version est modifiée par Evora (fork https://github.com/tazerty/vectorcraft, branche
+evora/<tag amont>). Chaque modification est un commit EVORA-SIN-NN de cette branche, qui cite le
+patch qu'il porte. Ce n'est pas un produit ArtCraft : les marques ArtCraft (nom, logotype, logos)
+en sont retirées, et l'équipe ArtCraft ne parraine, ne soutient ni ne certifie cette version.
+
+This version is modified by Evora (fork https://github.com/tazerty/vectorcraft, branch
+evora/<upstream tag>); each change is an EVORA-SIN-NN commit on that branch. It is not an ArtCraft
+product: the ArtCraft marks (name, wordmark, logos) are removed from it, and the ArtCraft team does
+not sponsor, endorse or support it.
+
+Avis de licence livrés dans ce dossier / Licence notices in this folder: LICENSE-MIT,
+LICENSE-APACHE, NOTICE, ASSETS.md, OFL-*.txt (polices craft-fonts) et THIRD-PARTY-LICENSES.txt
+(composants Rust du build web, généré par cargo-about).

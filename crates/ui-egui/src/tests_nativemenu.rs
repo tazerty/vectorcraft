@@ -151,8 +151,8 @@ fn language_and_appearance_are_in_the_app_menu() {
 }
 
 /// Everything the in-window bar lists is in the Mac menu bar, once: what moved to the app menu
-/// (About, Settings, Quit, Language, UI Brightness) leaves its other places, and Join Our Discord
-/// stays under Help.
+/// (About, Settings, Quit, Language, UI Brightness) leaves its other places, and Help keeps its
+/// own items (Evora, E1: there is no Discord item any more).
 #[test]
 fn every_in_window_item_is_in_the_mac_menu_bar_once() {
     let app = app(true);
@@ -188,7 +188,8 @@ fn every_in_window_item_is_in_the_mac_menu_bar_once() {
         assert!(a.contains_key(key) || system.contains(&key.0.as_str()) || synthesized.contains(&key.0.as_str()), "{key:?} isn't an in-window item");
     }
     let help = ids(menu(&mac, "Help"));
-    assert!(help.contains(&"help.discord".to_string()) && !help.contains(&"help.about".to_string()), "{help:?}");
+    assert!(help.contains(&"help.commandPalette".to_string()) && !help.contains(&"help.about".to_string()), "{help:?}");
+    assert!(!help.contains(&"help.discord".to_string()), "{help:?}");
     let edit = ids(menu(&mac, "Edit"));
     assert!(!edit.contains(&"edit.preferences".to_string()) && edit.contains(&"edit.keyboardShortcuts".to_string()), "{edit:?}");
     assert!(ids(menu(&mac, "Window")).contains(&"[Workspace]".to_string()));

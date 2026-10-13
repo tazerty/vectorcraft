@@ -10,7 +10,7 @@
 //!   `app.quit`, so documents with unsaved changes are asked about. Language and Appearance have
 //!   no in-window menu (as in PhotoCraft) and are synthesized here; Quit is File › Exit in the
 //!   window and reads as Quit in the App menu. These leave the other menus (Edit › Preferences…,
-//!   Help › About), and Join Our Discord stays under Help only;
+//!   Help › About);
 //! - **Window** gets Minimize ⌃⌘M, Zoom and Bring All to Front, and **Help** the system's search
 //!   field;
 //! - a system key already bound to a command keeps the command's: the system item goes without.
@@ -325,7 +325,7 @@ pub fn mac_layout(app: &VectorcraftApp, bar: &MenuBar, lang: Lang) -> Layout {
     // them, else synthesized here (the in-window bar has neither).
     let language = take_submenu(&mut bar, "app.language").or_else(|| Some(language_node(app, lang)));
     let appearance = take_submenu(&mut bar, "window.brightness").or_else(|| Some(appearance_node(app, lang)));
-    // Its other items (Join Our Discord) stay where the in-window bar also has them: Help.
+    // Any other items stay where the in-window bar also has them.
     bar.menus.retain(|m| m.role != MenuRole::App);
 
     let mut app = Vec::new();

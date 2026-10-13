@@ -41,7 +41,6 @@
 	Favorites	즐겨찾기
 	Flip	뒤집기
 	Japanese	일본어
-	Join Our Discord	Discord 참여하기
 	Line-end Punctuation Half Width	줄 끝 문장 부호 반각
 	Mojikumi Set	모지쿠미 세트
 	Kinsoku Set	긴소쿠 세트
@@ -642,8 +641,6 @@
 	Save Swatch Library…	견본 라이브러리 저장…
 	Symbol Libraries	심볼 라이브러리
 	Help	도움말
-	ArtCraft Website	ArtCraft 웹사이트
-	VectorCraft on getartcraft.com	getartcraft.com의 VectorCraft
 	VectorCraft on GitHub	GitHub의 VectorCraft
 	Search Commands…	명령 검색…
 	VectorCraft Help…	VectorCraft 도움말…
@@ -847,7 +844,6 @@
 	Arrange: Bring to Front	배열: 맨 앞으로 가져오기
 	Arrowheads:	화살촉:
 	Art using a deleted global swatch keeps its colour.	삭제된 글로벌 견본을 사용한 아트워크는 색상을 유지합니다.
-	ArtCraft website	ArtCraft 웹사이트
 	Artboard Options	아트보드 옵션
 	Artboard Options: edit with the Artboard tool	아트보드 옵션: 아트보드 도구로 편집
 	Artboard Options…	아트보드 옵션…
@@ -1523,8 +1519,6 @@
 	Isolate Group	그룹 격리
 	Italian	이탈리아어
 	Join Tool	결합 도구
-	Join our Discord	Discord 참여하기
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Discord에서 ArtCraft 커뮤니티에 참여하세요 (discord.gg/artcraft)
 	Join the lines of each paragraph	각 단락의 줄 결합
 	Justification…	양끝 맞춤…
 	Keep Formatting	서식 유지
@@ -2932,7 +2926,6 @@
 	Delete these {n} graphic styles?	그래픽 스타일 {n}개를 삭제하시겠습니까?
 	Delete this {n} graphic style?	그래픽 스타일 {n}개를 삭제하시겠습니까?
 	Discarded {} recovered document(s)	복구된 문서 {}개를 삭제했습니다
-	Discord	Discord
 	Do Not Move	이동 안 함
 	Document Swatches	문서 견본
 	Document profile	문서 프로파일
@@ -3085,7 +3078,7 @@
 	Packaged {n} file(s){note}	파일 {n}개를 패키지했습니다{note}
 	Page information	페이지 정보
 	Paragraph Style	단락 스타일
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	ArtCraft의 일부입니다. MIT OR Apache-2.0. 글꼴: Source Sans 3, Inter, JetBrains Mono (OFL). 아이콘: Lucide (ISC) + VectorCraft.
+	MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	MIT OR Apache-2.0. 글꼴: Source Sans 3, Inter, JetBrains Mono (OFL). 아이콘: Lucide (ISC) + VectorCraft.
 	Perspective grid presets	원근 격자 프리셋
 	Phone 390×844	휴대폰 390×844
 	Place onto a new locked, dimmed template layer below the current layer	현재 레이어 아래의 잠기고 흐리게 처리된 새 템플릿 레이어에 배치

@@ -186,8 +186,6 @@
 	Artboard {number}	画板 {number}
 	Artboard:	画板：
 	Artboards	画板
-	ArtCraft Website	ArtCraft 网站
-	ArtCraft website	ArtCraft 网站
 	Artwork Colors	图稿颜色
 	As Multiple Assets	作为多个资源
 	As Single Asset	作为单一资源
@@ -642,7 +640,6 @@
 	Discard Recovered Documents	丢弃已恢复的文档
 	Discard White Overprint in Output	输出时放弃白色叠印
 	Discarded {} recovered document(s)	已放弃 {} 份恢复的文档
-	Discord	Discord
 	Discretionary Hyphen	选择性连字号
 	Discretionary Ligatures	任意连字
 	Display All Blacks Accurately	准确显示所有黑色
@@ -1257,9 +1254,6 @@
 	Isolate Group	隔离编组
 	Italian	意大利语
 	Join	连接
-	Join Our Discord	加入 Discord
-	Join our Discord	加入我们的 Discord
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	在 Discord 加入 ArtCraft 社区 (discord.gg/artcraft)
 	Join the lines of each paragraph	合并每个段落的行
 	Join Tool	连接工具
 	Justification…	对齐设置…
@@ -1835,7 +1829,7 @@
 	Paragraph Style Options	段落样式选项
 	Paragraph Styles	段落样式
 	Paragraph Symbol	段落符号
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	ArtCraft 的一部分。MIT OR Apache-2.0。字体：Source Sans 3、Inter、JetBrains Mono (OFL)。图标：Lucide (ISC) + VectorCraft。
+	MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	MIT OR Apache-2.0。字体：Source Sans 3、Inter、JetBrains Mono (OFL)。图标：Lucide (ISC) + VectorCraft。
 	Password	口令
 	Paste	粘贴
 	Paste in Back	贴在后面
@@ -3027,7 +3021,6 @@
 	VectorCraft	VectorCraft
 	VectorCraft didn't quit normally last time. These documents had unsaved changes:	VectorCraft 上次未正常退出。以下文档有未存储的更改：
 	VectorCraft Help…	VectorCraft 说明…
-	VectorCraft on getartcraft.com	getartcraft.com 上的 VectorCraft
 	VectorCraft on GitHub	GitHub 上的 VectorCraft
 	Vectors	矢量
 	Version {version} — open-source vector illustration in pure Rust.	版本 {version} — 以纯 Rust 打造的开放原始码矢量插画软件。
@@ -3273,7 +3266,6 @@
 	X:	X：
 	Y:	Y：
 	Text Displayed in Cell	单元格中显示的文本
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + VectorCraft.	ArtCraft 的一部分。MIT 或 Apache-2.0 许可。字体：Source Sans 3、Inter、JetBrains Mono、Noto Sans SC (OFL)。图标：Lucide (ISC)+ VectorCraft。
 	RGB	RGB
 	Pattern Swatches	图案色板
 	Default Graphic Style	默认图形样式
