@@ -2947,7 +2947,7 @@ fn render_row(app: &VectorcraftApp, ui: &mut egui::Ui, row: &Row, checks: bool, 
         return;
     };
     let text = match row.checked.filter(|_| checks) {
-        Some(true) => format!("✓  {}", row.label),
+        Some(true) => format!("•  {}", row.label),
         Some(false) => format!("     {}", row.label),
         None => row.label.to_string(),
     };

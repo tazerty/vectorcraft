@@ -3906,7 +3906,7 @@
 	“{file}” is protected by a password.	„{file}” jelszóval védett.
 	▾ Default Actions	▾ Alapértelmezett műveletek
 	● Recording	● Felvétel
-	⚠ {chord} was already used by {names} — it has been removed there.	Figyelem: {chord} eddig ezekhez tartozott: {names} – onnan eltávolítva.
+	{chord} was already used by {names} — it has been removed there.	Figyelem: {chord} eddig ezekhez tartozott: {names} – onnan eltávolítva.
 
 # Command ids
 @id	file.close	Bezárás

@@ -1457,7 +1457,7 @@ pub fn menu_item(ui: &mut Ui, label: &str, enabled: bool, checked: bool) -> bool
 
 /// [`menu_item`] for a name that is user or file data (a library, a recent URL), never translated.
 pub fn menu_item_name(ui: &mut Ui, label: &str, enabled: bool, checked: bool) -> bool {
-    let text = if checked { format!("✓ {label}") } else { format!("   {label}") };
+    let text = if checked { format!("• {label}") } else { format!("   {label}") };
     ui.add_enabled(enabled, egui::Button::new(egui::RichText::new(text).size(12.5)).frame(false)).clicked()
 }
 

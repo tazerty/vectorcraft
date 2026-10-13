@@ -368,7 +368,7 @@ mod tests {
         set_pref(&mut app, "usePreviewBounds", true);
         let shown = texts(&mut app, show);
         assert!(shown.iter().any(|t| t == "110 pt") && shown.iter().any(|t| t == "60 pt"), "{shown:?}");
-        assert!(texts(&mut app, crate::panels::align::menu).iter().any(|t| t == "✓ Use Preview Bounds"));
+        assert!(texts(&mut app, crate::panels::align::menu).iter().any(|t| t == "• Use Preview Bounds"));
     }
 
     #[test]

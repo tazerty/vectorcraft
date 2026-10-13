@@ -359,7 +359,7 @@ fn preview_area(app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, set
     match settings {
         Err(e) => {
             ui.painter().rect_filled(area, 2.0, t.pasteboard);
-            ui.painter().text(area.center(), egui::Align2::CENTER_CENTER, format!("⚠ {e}"), egui::FontId::proportional(12.5), t.text);
+            ui.painter().text(area.center(), egui::Align2::CENTER_CENTER, format!("{e}"), egui::FontId::proportional(12.5), t.text);
         }
         Ok(s) => {
             let alts = alternates(s);
@@ -471,7 +471,7 @@ fn draw_pane(
     let font = egui::FontId::proportional(11.5);
     let (first, second, third) = match shot {
         Err(e) => {
-            p.text(image.center(), egui::Align2::CENTER_CENTER, format!("⚠ {e}"), font.clone(), t.text);
+            p.text(image.center(), egui::Align2::CENTER_CENTER, format!("{e}"), font.clone(), t.text);
             ("".into(), String::new(), String::new())
         }
         Ok(shot) => {

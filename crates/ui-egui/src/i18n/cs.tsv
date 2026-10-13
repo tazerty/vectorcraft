@@ -4262,7 +4262,7 @@ effect	Regular	Pravidelný
 	Click, then press the new shortcut (Esc cancels)	Klikněte a stiskněte novou zkratku (Esc zruší)
 	All shortcuts reset to defaults.	Všechny zkratky byly obnoveny na výchozí hodnoty.
 	Imported. Press OK to keep the imported set.	Importováno. Importovanou sadu zachováte stisknutím OK.
-	⚠ {chord} was already used by {names} — it has been removed there.	Pozor: zkratka {chord} už byla použita pro {names} — tam byla odebrána.
+	{chord} was already used by {names} — it has been removed there.	Pozor: zkratka {chord} už byla použita pro {names} — tam byla odebrána.
 	VectorCraft Defaults	Výchozí VectorCraft
 @plural	{n} shortcut is assigned more than once|{n} shortcuts are assigned more than once	{n} zkratka je přiřazena více než jednou|{n} zkratky jsou přiřazeny více než jednou|{n} zkratek je přiřazeno více než jednou
 # Print dialog: overprints note and choice labels

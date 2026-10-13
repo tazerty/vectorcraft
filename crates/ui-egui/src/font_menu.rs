@@ -257,7 +257,7 @@ fn list(ui: &mut Ui, state_id: egui::Id, st: &mut MenuState, current: &str, samp
     });
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = vec2(4.0, 2.0);
-        if ui.selectable_label(st.favorites_only, egui::RichText::new("★").size(11.0)).on_hover_text(tl!("Favorites")).clicked() {
+        if crate::widgets::icon_button(ui, "star", tl!("Favorites"), st.favorites_only, 18.0).clicked() {
             st.favorites_only = !st.favorites_only;
             refilter = true;
         }
@@ -406,7 +406,7 @@ fn list(ui: &mut Ui, state_id: egui::Id, st: &mut MenuState, current: &str, samp
                 let hot = resp.hover_pos().is_some_and(|pos| star.contains(pos));
                 if on || hot || st.highlight == Some(i) {
                     let color = if on { t.accent } else { t.text_dim };
-                    p.text(star.center(), egui::Align2::CENTER_CENTER, if on { "★" } else { "☆" }, egui::FontId::proportional(12.0), color);
+                    crate::icons::paint(ui, "star", egui::Rect::from_center_size(star.center(), vec2(12.0, 12.0)), color);
                 }
                 on_star = resp.interact_pointer_pos().is_some_and(|pos| star.contains(pos));
                 if resp.clicked() && on_star {

@@ -56,7 +56,7 @@ fn screen(app: &VectorcraftApp, x: f64, y: f64) -> Pos2 {
 }
 
 fn has(texts: &[(String, Rect)], label: &str) -> bool {
-    texts.iter().any(|(t, _)| t.trim_start_matches(['✓', ' ']) == label)
+    texts.iter().any(|(t, _)| t.trim_start_matches(['•', ' ']) == label)
 }
 
 fn at(texts: &[(String, Rect)], label: &str) -> Pos2 {
@@ -125,15 +125,15 @@ fn right_clicking_a_ruler_swaps_the_document_units() {
     for label in ["Points", "Picas", "Inches", "Millimeters", "Feet & Inches", "Pixels"] {
         assert!(has(&texts, label), "{label} in {texts:?}");
     }
-    assert!(texts.iter().any(|(t, _)| t == "✓  Points"), "the current unit is checked: {texts:?}");
+    assert!(texts.iter().any(|(t, _)| t == "•  Points"), "the current unit is checked: {texts:?}");
     // Choosing a unit runs document.setUnits and closes the menu.
-    let mm = texts.iter().find(|(t, _)| t.trim_start_matches(['✓', ' ']) == "Millimeters").map(|(_, r)| r.center()).expect("Millimeters");
+    let mm = texts.iter().find(|(t, _)| t.trim_start_matches(['•', ' ']) == "Millimeters").map(|(_, r)| r.center()).expect("Millimeters");
     let texts = click(&mut app, &ctx, mm, PointerButton::Primary);
     assert_eq!(app.session.general_unit(), Unit::Millimeters, "the ruler's unit changed");
     assert!(!has(&texts, "Inches"), "the menu closed");
     // The left ruler offers the same menu, now checking the new unit.
     let texts = click(&mut app, &ctx, pos2(8.0, 300.0), PointerButton::Secondary);
-    assert!(texts.iter().any(|(t, _)| t == "✓  Millimeters"), "the left ruler reflects the current unit: {texts:?}");
+    assert!(texts.iter().any(|(t, _)| t == "•  Millimeters"), "the left ruler reflects the current unit: {texts:?}");
 }
 
 fn labels(items: &[Item]) -> Vec<&'static str> {

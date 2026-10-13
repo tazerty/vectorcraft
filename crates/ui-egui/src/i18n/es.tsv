@@ -4268,7 +4268,7 @@ effect	Regular	Regular
 	Click, then press the new shortcut (Esc cancels)	Haz clic y presiona el nuevo método abreviado (Esc cancela)
 	All shortcuts reset to defaults.	Se restablecieron todos los métodos abreviados a los valores predeterminados.
 	Imported. Press OK to keep the imported set.	Importado. Presiona Aceptar para conservar el conjunto importado.
-	⚠ {chord} was already used by {names} — it has been removed there.	Atención: {chord} ya estaba en uso por {names}; se quitó de allí.
+	{chord} was already used by {names} — it has been removed there.	Atención: {chord} ya estaba en uso por {names}; se quitó de allí.
 	VectorCraft Defaults	Valores predeterminados de VectorCraft
 @plural	{n} shortcut is assigned more than once|{n} shortcuts are assigned more than once	{n} método abreviado está asignado más de una vez|{n} métodos abreviados están asignados más de una vez
 	Simulate prints overprints as Overprint Preview shows them; separations always keep them. A preset flattens transparency before printing (PostScript files always flatten it).	«Simular» imprime las sobreimpresiones tal como las muestra la vista previa de sobreimpresión; las separaciones siempre las conservan. Un preajuste acopla la transparencia antes de imprimir (los archivos PostScript siempre la acoplan).
