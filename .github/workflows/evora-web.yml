@@ -166,6 +166,58 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  tests:
+    name: Tests natifs ciblés (modules touchés par Evora)
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Checkout craft-fonts (commit épinglé)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: storytold/craft-fonts
+          ref: ${{ env.CRAFT_FONTS_REF }}
+          path: craft-fonts
+          persist-credentials: false
+
+      - name: Cache cargo (tests natifs)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: evora-tests-${{ runner.os }}-rust-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            evora-tests-${{ runner.os }}-rust-${{ env.RUST_TOOLCHAIN }}-
+
+      - name: Toolchain Rust (rustup, version épinglée)
+        run: |
+          set -euo pipefail
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --no-self-update
+          rustup default "$RUST_TOOLCHAIN"
+          case "$(rustc -V)" in
+            "rustc $RUST_TOOLCHAIN "*) ;;
+            *) echo "::error::rustc n'est pas $RUST_TOOLCHAIN"; exit 1 ;;
+          esac
+
+      # Les tests des modules que les patchs Evora touchent (liens, marque, barre, menus, coches,
+      # catalogues i18n, thème, polices) et ceux du moteur pour help.rs (exception L5 d'E1).
+      - name: Tests ciblés (cargo test --locked)
+        env:
+          CRAFT_FONTS_DIR: ${{ github.workspace }}/craft-fonts
+        run: |
+          set -euo pipefail
+          cargo test --locked -p vectorcraft-engine --lib -- cmd::help
+          cargo test --locked -p vectorcraft-ui-egui --lib -- \
+            community:: brand:: titlebar:: tests_nativemenu:: tests_contextmenu:: tests_clipboard:: \
+            panels::transform:: panels::transparency:: graphics:: i18n:: theme:: tests_font_menu:: tests_home::
+
   web:
     name: Web (wasm) Evora
     needs: licences
