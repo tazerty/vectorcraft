@@ -367,6 +367,9 @@ def cmd_smoke_summary(path):
     print(f"- contexte de l'iframe vu à {tl.get('contextA')} ms ; sondages : {tl.get('polls')}")
     print(f"- canvas : présent={p.get('canvas')} ; {p.get('width')}×{p.get('height')} px (affiché {p.get('clientWidth')}×{p.get('clientHeight')}) ; titre : « {p.get('title')} » ; `navigator.gpu` : {p.get('webgpu')}")
     print(f"- moteur graphique annoncé par le moteur : {r.get('backend') or 'non vu dans la console'}")
+    th = r.get("theme") or {}
+    if th.get("requested"):
+        print(f"- thème imposé (E2) : `?theme={th.get('requested')}` ; couleur dominante de la barre d'application au rendu : #{th.get('dominantBar')} (attendu #{th.get('expectedBar')}, ±3 par canal)")
     st = r.get("storage") or {}
     if st.get("seeded"):
         print(f"- stockage hébergé (E5) : `?host={st.get('host')}` ; semé avant le moteur : {', '.join('`' + k + '`' for k in st['seeded'])} ; après démarrage : {', '.join('`' + k + '`' for k in (st.get('after') or [])) or 'aucune clé'}")
