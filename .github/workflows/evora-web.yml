@@ -13,9 +13,11 @@
 #   job licences : cargo-deny (licences, avis de sécurité, interdits, sources) et cargo-about
 #                  (LICENSES/THIRD-PARTY-LICENSES.txt) ;
 #   job web      : marques ArtCraft dans le bundle, fichiers d'hébergement, termes sensibles (E9),
-#                  émojis des catalogues affichés (E10), empreintes CSP, test de fumée Chrome depuis
-#                  une autre origine avec langue imposée (E3), thème imposé vérifié au rendu (E2)
-#                  et stockage hébergé purgé (E5).
+#                  émojis des catalogues affichés (E10), empreintes CSP, tests de fumée Chrome depuis
+#                  une autre origine : « base » (langue imposée E3, thème imposé vérifié au rendu E2,
+#                  ?host=evora qui n'efface rien et pont muet sans origine admise E5/E4), « pont-ehp »
+#                  (pont EHP v1 natif E4 et purge E5 sur messages vérifiés), et deux témoins sabordés
+#                  qui doivent rougir pour les raisons attendues (origine non admise, détecteurs).
 #                  Sorties .br et .gz, mesure de taille.
 # Le zip et l'artefact ne sont produits que si toutes les portes sont vertes ; ils portent le nom
 # Evora evora-sinopia-pro-web-<tag> (EVORA-SIN-10).
@@ -365,6 +367,10 @@ jobs:
           # licences des composants tiers agrégées par cargo-about.
           cp packaging/evora/MENTIONS.txt "$WORK/$NAME/LICENSES/MENTIONS-EVORA.txt"
           cp "$LIC_IN/THIRD-PARTY-LICENSES.txt" "$WORK/$NAME/LICENSES/THIRD-PARTY-LICENSES.txt"
+          # E4 : origines parentes admises par le pont EHP (?host=evora), même contrat que pdfcraft.
+          # Vide dans l'artefact : le provisionnement d'Evora l'écrit depuis engines.json
+          # (HOST-PROTOCOL §2.3) ; vide, le pont reste muet.
+          printf '{"parentOrigins": []}\n' > "$WORK/$NAME/evora-host.json"
           for ofl in "$CRAFT_FONTS_DIR"/fonts/*/OFL.txt; do
             [ -f "$ofl" ] || continue
             cp "$ofl" "$WORK/$NAME/LICENSES/OFL-$(basename "$(dirname "$ofl")").txt"
@@ -410,30 +416,53 @@ jobs:
         if: ${{ !cancelled() && steps.pkg.outcome == 'success' }}
         run: python3 -I packaging/evora/gates.py csp "${{ steps.pkg.outputs.pkg }}/index.html" "${{ steps.pkg.outputs.pkg }}/csp-hashes.txt" | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: Porte « test de fumée » (Chrome sans interface, iframe depuis une autre origine)
+      # Quatre passages de smoke.mjs ; la porte est rouge si « base » ou « pont-ehp » rougit, ou si
+      # un témoin sabordé reste vert ou rougit pour une autre raison que la sienne.
+      - name: Porte « tests de fumée » (Chrome sans interface, iframe depuis une autre origine)
         if: ${{ !cancelled() && steps.pkg.outcome == 'success' }}
         env:
           PKG: ${{ steps.pkg.outputs.pkg }}
-          # Patch E3 : la langue imposée par l'hôte, et la correspondance zh-Hans → zh-hans.
-          SMOKE_LANG: zh-Hans
-          SMOKE_EXPECT_LANG: zh-hans
-          # Patch E5 : moteur hébergé (?host=evora) ; une copie de récupération semée avant le
-          # démarrage doit être purgée, une clé témoin de l'origine doit rester.
-          SMOKE_HOST: evora
-          SMOKE_SEED: "1"
-          # Patch E2 : thème clair imposé par l'hôte, vérifié au rendu sur la barre d'application
-          # (jeton app_bar de la luminosité Light, #e4e4e4).
-          SMOKE_THEME: light
-          SMOKE_EXPECT_BAR: e4e4e4
         run: |
           set +e
           set -u
-          REPORT="$RUNNER_TEMP/evora-smoke.json"
-          node packaging/evora/smoke.mjs "$PKG" "$REPORT" "$CHROME_BIN" > "$RUNNER_TEMP/evora-smoke.out" 2>&1
-          rc=$?
-          python3 -I packaging/evora/gates.py smoke-summary "$REPORT" | tee -a "$GITHUB_STEP_SUMMARY"
-          tail -n 120 "$RUNNER_TEMP/evora-smoke.out"
-          exit "$rc"
+          gate=0
+          smoke() { # nom, puis les variables SMOKE_* du passage
+            local name="$1"
+            shift
+            env "$@" node packaging/evora/smoke.mjs "$PKG" "$RUNNER_TEMP/evora-smoke-$name.json" "$CHROME_BIN" > "$RUNNER_TEMP/evora-smoke-$name.out" 2>&1
+            local rc=$?
+            python3 -I packaging/evora/gates.py smoke-summary "$RUNNER_TEMP/evora-smoke-$name.json" "$name" > "$RUNNER_TEMP/evora-smoke-$name.md"
+            cat "$RUNNER_TEMP/evora-smoke-$name.md" >> "$GITHUB_STEP_SUMMARY"
+            cat "$RUNNER_TEMP/evora-smoke-$name.md"
+            tail -n 60 "$RUNNER_TEMP/evora-smoke-$name.out"
+            return "$rc"
+          }
+          red() { # nom, any|only, motifs : le passage sabordé doit être rouge pour ces raisons
+            local name="$1"
+            shift
+            python3 -I packaging/evora/gates.py smoke-red "$RUNNER_TEMP/evora-smoke-$name.json" "$@" > "$RUNNER_TEMP/evora-red-$name.md"
+            local rc=$?
+            cat "$RUNNER_TEMP/evora-red-$name.md" >> "$GITHUB_STEP_SUMMARY"
+            cat "$RUNNER_TEMP/evora-red-$name.md"
+            return "$rc"
+          }
+          # « base » : langue imposée (E3, zh-Hans → zh-hans), thème clair au rendu (E2, barre
+          # #e4e4e4), ?host=evora avec l'evora-host.json de l'artefact (vide) : la copie de
+          # récupération semée reste (aucune purge sur simple paramètre d'URL, E5), le témoin aussi,
+          # et la page parente ne reçoit aucun message (pont muet, E4).
+          smoke base SMOKE_LANG=zh-Hans SMOKE_EXPECT_LANG=zh-hans SMOKE_HOST=evora SMOKE_SEED=1 \
+            SMOKE_THEME=light SMOKE_EXPECT_BAR=e4e4e4 || gate=1
+          # « pont-ehp » : origine B admise par evora-host.json (servi par le banc comme l'écrirait le
+          # provisionnement) ; déroulé complet du pont EHP v1 et de la purge (smoke.mjs, ehpScenario).
+          smoke pont-ehp SMOKE_EHP=1 SMOKE_LANG=en SMOKE_HOST=evora SMOKE_SEED=1 \
+            SMOKE_THEME=light SMOKE_EXPECT_BAR=e4e4e4 || gate=1
+          # Témoins sabordés : le même banc doit rougir.
+          smoke temoin-origine SMOKE_EHP=1 SMOKE_SABOTAGE=origin SMOKE_LANG=en SMOKE_HOST=evora SMOKE_SEED=1 SMOKE_THEME=light
+          red temoin-origine any "evora:ready reçu 0 fois" || gate=1
+          smoke temoin-detecteurs SMOKE_EHP=1 SMOKE_SABOTAGE=detectors SMOKE_LANG=en SMOKE_HOST=evora SMOKE_SEED=1 SMOKE_THEME=light
+          red temoin-detecteurs only "réponse à un message qui devait être ignoré" "stockage du moteur vide après evora:purge" || gate=1
+          echo "verdict de la porte des tests de fumée : $([ "$gate" -eq 0 ] && echo VERTE || echo ROUGE)" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "$gate"
 
       - name: Sorties précompressées .br et .gz, mesure de taille
         if: ${{ !cancelled() && steps.pkg.outcome == 'success' }}

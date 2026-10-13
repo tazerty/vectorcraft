@@ -10,6 +10,11 @@ avec le code 1 quand la porte échoue ou quand son instrument ne voit pas son t�
   terms <repo>                 termes sensibles dans les catalogues affichés (patch E9), bloquante
   csp <index.html> <sortie>    empreintes sha256 des scripts et styles inline (CSP)
   precompress <site>           .br et .gz à côté des fichiers compressibles, vérifiés par relecture
+  smoke-summary <rapport> [nom]  résumé d'un rapport de smoke.mjs (la porte est le code de sortie de smoke.mjs)
+  smoke-red <rapport> any|only <motif>...
+                               verdict d'un test de fumée sabordé : il doit être ROUGE et chaque motif doit
+                               se trouver dans ses raisons ; `only` exige en plus qu'aucune autre raison
+                               n'apparaisse (le sabordage, et lui seul, fait rougir le banc)
 
 Lancer avec `python3 -I`. Aucune dépendance hors de la bibliothèque standard ; `brotli` et `gzip`
 sont les binaires du runner (leur version est imprimée).
@@ -344,11 +349,12 @@ def cmd_precompress(site):
     return 0
 
 
-def cmd_smoke_summary(path):
+def cmd_smoke_summary(path, name=None):
     """Met en forme le rapport JSON de smoke.mjs (la porte elle-même est le code de sortie de smoke.mjs)."""
     import json
 
-    print("### Test de fumée : moteur servi sur une origine A, dans l'iframe d'une page servie sur une origine B (porte bloquante)")
+    label = f" « {name} »" if name else ""
+    print(f"### Test de fumée{label} : moteur servi sur une origine A, dans l'iframe d'une page servie sur une origine B")
     print()
     try:
         with open(path, encoding="utf-8") as fh:
@@ -373,9 +379,29 @@ def cmd_smoke_summary(path):
     st = r.get("storage") or {}
     if st.get("seeded"):
         print(f"- stockage hébergé (E5) : `?host={st.get('host')}` ; semé avant le moteur : {', '.join('`' + k + '`' for k in st['seeded'])} ; après démarrage : {', '.join('`' + k + '`' for k in (st.get('after') or [])) or 'aucune clé'}")
+    if st.get("host") == "evora" and not r.get("ehp"):
+        print(f"- pont EHP sans origine admise (`evora-host.json` de l'artefact) : {len(r.get('parentMessages') or [])} message(s) reçu(s) par la page parente (attendu : aucun)")
     lang = r.get("lang") or {}
     if lang.get("requested"):
         print(f"- langue imposée (E3) : `?lang={lang.get('requested')}` ; attribut `lang` attendu « {lang.get('expected')} », obtenu « {lang.get('got')} »")
+    ehp = r.get("ehp")
+    if ehp:
+        steps = ehp.get("steps") or []
+        print(f"- pont EHP (E4), mode `{ehp.get('mode')}` ; origine C (non admise) : `{ehp.get('originC')}` ; étapes vertes : {sum(1 for x in steps if x.get('ok'))}/{len(steps)}")
+        for x in steps:
+            mark = "vert" if x.get("ok") else "ROUGE"
+            detail = "" if x.get("ok") else f" : {str(x.get('detail'))[:200]}"
+            print(f"  - {mark} : {x.get('name')}{detail}")
+        msgs = ehp.get("messages") or []
+        trace = " ; ".join(
+            f"{m.get('type')}" + (f" (re …{str(m.get('re'))[-4:]})" if m.get("re") else "") + (f" {json.dumps(m.get('payload'), ensure_ascii=False)[:120]}" if m.get("payload") else "")
+            for m in msgs
+        )
+        print(f"- messages du moteur vus par la page parente ({len(msgs)}) : {trace or 'aucun'}")
+        ids = ehp.get("ids") or {}
+        print(f"- messages qui devaient rester sans réponse : {len(ids.get('ignored') or [])} de la page parente (hors norme), {len(ids.get('foreign') or [])} de relais non admis")
+        for k, v in (ehp.get("storage") or {}).items():
+            print(f"- stockage de l'origine du moteur, {k} : `{json.dumps(v, ensure_ascii=False)}`")
     print(f"- exceptions de page : {len(r.get('exceptions', []))} ; requêtes en échec sur A : {len(r.get('failedRequestsA', []))} ; hors A : {len(r.get('failedRequestsOther', []))} ; erreurs console : {len(r.get('consoleErrors', []))} ; plantage : {r.get('crashed')}")
     print(f"- requêtes servies par A : {r.get('requestsA')} ({r.get('bytesA')} octets, non compressés)")
     if "distinctColors" in px:
@@ -407,13 +433,45 @@ def cmd_smoke_summary(path):
     return 0
 
 
+def cmd_smoke_red(path, mode, motifs):
+    """Un test de fumée sabordé doit être ROUGE, pour les raisons attendues (et seulement elles avec `only`)."""
+    import json
+
+    print(f"#### Témoin sabordé `{os.path.basename(path)}` : le banc doit rougir ({mode})")
+    print()
+    try:
+        with open(path, encoding="utf-8") as fh:
+            r = json.load(fh)
+    except (OSError, ValueError) as e:
+        print(f"- rapport illisible : {e}")
+        print()
+        return 1
+    reasons = r.get("reasons") or []
+    for reason in reasons:
+        print(f"- raison : {reason[:300]}")
+    missing = [m for m in motifs if not any(m in reason for reason in reasons)]
+    stray = [reason for reason in reasons if not any(m in reason for m in motifs)] if mode == "only" else []
+    ok = r.get("ok") is False and not missing and not stray
+    print(f"- verdict : **{'VU ROUGE, comme attendu' if ok else 'ÉCHEC DU TÉMOIN'}**")
+    if r.get("ok") is not False:
+        print("- le banc est resté vert sous le sabordage : il ne prouve rien")
+    for m in missing:
+        print(f"- raison attendue absente : « {m} »")
+    for reason in stray:
+        print(f"- raison inattendue : {reason[:300]}")
+    print()
+    return 0 if ok else 1
+
+
 def main(argv):
     if len(argv) < 3:
         print(__doc__)
         return 2
     cmd = argv[1]
     if cmd == "smoke-summary":
-        return cmd_smoke_summary(argv[2])
+        return cmd_smoke_summary(argv[2], argv[3] if len(argv) > 3 else None)
+    if cmd == "smoke-red" and len(argv) >= 5 and argv[3] in ("any", "only"):
+        return cmd_smoke_red(argv[2], argv[3], argv[4:])
     if cmd == "brand":
         return cmd_brand(argv[2])
     if cmd == "hosting":
