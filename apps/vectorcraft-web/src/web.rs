@@ -142,7 +142,14 @@ async fn run(host: Host, canvas: web_sys::HtmlCanvasElement, moving: Option<Movi
                         if let Err(e) = crate::api::install() {
                             log::error!("vectorcraft-web: couldn't install window.vectorcraft: {}", js_err(e));
                         }
-                        VectorcraftApp::new(Session::new(), services).with_control(control_rx)
+                        let mut app = VectorcraftApp::new(Session::new(), services).with_control(control_rx);
+                        // Evora (patch E2): Evora's indigo accent, and the host's theme picks the
+                        // UI brightness.
+                        app.session.prefs.ui_accent = vectorcraft_ui_egui::theme::Accent::Indigo.id().into();
+                        if let Some(b) = host_brightness() {
+                            app.session.prefs.ui_brightness = b.into();
+                        }
+                        app
                     }
                 };
                 Ok(Box::new(WebShell { app: Some(app), host, canvas: page, loss }))
@@ -210,6 +217,16 @@ fn detect_language() {
 fn query_param(name: &str) -> Option<String> {
     let query = query();
     query.trim_start_matches('?').split('&').find_map(|kv| kv.strip_prefix(name)?.strip_prefix('=').map(str::to_string)).filter(|v| !v.is_empty())
+}
+
+/// Evora (patch E2): the UI brightness the host page asks for with `?theme=light|dark`
+/// (HOST-PROTOCOL §2.4): Light or Dark instead of the upstream Medium Dark. Any other value: none.
+fn host_brightness() -> Option<&'static str> {
+    match query_param("theme").as_deref() {
+        Some("light") => Some("light"),
+        Some("dark") => Some("dark"),
+        _ => None,
+    }
 }
 
 /// Whether the address's query has the flag `name` (`?webgl`, `?webgl=1`), matched by name: a value

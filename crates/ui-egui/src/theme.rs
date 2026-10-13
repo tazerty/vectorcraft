@@ -1,4 +1,9 @@
 //! Design tokens (four UI brightness levels), fonts and egui style.
+//!
+//! Evora (patch E2): the default accent is Evora's indigo ([`Accent::Indigo`]: #4F46E5, darker
+//! #4338CA, lighter #818CF8 on dark panels); the web build imposes it at start
+//! (apps/vectorcraft-web). The interface is set in Inter, Source Sans 3 behind it, as upstream now
+//! does. The host picks Light or Dark (`?theme=`, apps/vectorcraft-web).
 
 use std::sync::Arc;
 
@@ -37,11 +42,13 @@ impl Brightness {
     }
 }
 
-/// User Interface › Accent Color: the one colour for what is on, chosen or focused. Coral, the
-/// default, is the app icon's.
+/// User Interface › Accent Color: the one colour for what is on, chosen or focused. Evora (patch
+/// E2): Indigo, Evora's, is the default; Coral is the upstream app icon's.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Accent {
+    /// Evora (patch E2): Evora's indigo, the default.
     #[default]
+    Indigo,
     Coral,
     Blue,
     Violet,
@@ -51,9 +58,10 @@ pub enum Accent {
 }
 
 impl Accent {
-    pub const ALL: [Accent; 6] = [Accent::Coral, Accent::Blue, Accent::Violet, Accent::Green, Accent::Amber, Accent::Pink];
+    pub const ALL: [Accent; 7] = [Accent::Indigo, Accent::Coral, Accent::Blue, Accent::Violet, Accent::Green, Accent::Amber, Accent::Pink];
     pub fn id(self) -> &'static str {
         match self {
+            Accent::Indigo => "indigo",
             Accent::Coral => "coral",
             Accent::Blue => "blue",
             Accent::Violet => "violet",
@@ -69,6 +77,8 @@ impl Accent {
     /// with white lettering.
     fn colors(self, dark: bool) -> (u32, u32) {
         match (self, dark) {
+            (Accent::Indigo, true) => (0x818cf8, 0x4f46e5),
+            (Accent::Indigo, false) => (0x4f46e5, 0x4338ca),
             (Accent::Coral, true) => (0xf06a52, 0xe8573f),
             (Accent::Coral, false) => (0xd9472f, 0xd14a33),
             (Accent::Blue, true) => (0x5b96ff, 0x2f74f0),
@@ -325,8 +335,8 @@ impl Tokens {
             icon: hex(0xcfcfcf),
             hover: hex(0x444444),
             tool_active: hex(0x1d1d1d),
-            accent: hex(0x378ef0),
-            accent_strong: hex(0x1473e6),
+            accent: hex(0x4f46e5),
+            accent_strong: hex(0x4338ca),
             row_selected: hex(0x484b50),
             pasteboard: hex(0x1e1e1e),
             ruler: hex(0x2f2f2f),
