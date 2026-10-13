@@ -125,6 +125,8 @@ jobs:
             echo
             echo "- verdict : **$([ "$rc" -eq 0 ] && echo VERTE || echo ROUGE)** (code $rc)"
             echo "- avertissements : $(grep -c '^warning' "$OUT/cargo-deny-check.txt" || true) ; erreurs : $(grep -c '^error' "$OUT/cargo-deny-check.txt" || true)"
+            echo "- exceptions motivées de deny.toml (chacune avec sa raison) :"
+            grep -E '^\s*\{ (id|crate) = ' deny.toml | sed 's/^ */  - /' || echo "  - aucune"
             echo
             echo '```'
             tail -n 40 "$OUT/cargo-deny-check.txt"

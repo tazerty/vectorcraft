@@ -3,7 +3,7 @@
 # cible wasm32), sans les dépendances de développement. La CI lance :
 #   cargo deny --manifest-path apps/vectorcraft-web/Cargo.toml --locked check
 # Rien n'est relâché en silence : les réglages ci-dessous sont les valeurs par défaut ou plus
-# stricts, et toute exception porte sa raison écrite (aucune pour l'instant).
+# stricts ; chaque exception porte sa raison écrite, et la CI imprime le rapport complet.
 
 [graph]
 targets = ["wasm32-unknown-unknown"]
@@ -20,23 +20,28 @@ feature-depth = 1
 unmaintained = "all"
 unsound = "all"
 yanked = "deny"
-ignore = []
+# Exceptions motivées (relevées au run 38367552128, Cargo.lock du tag amont v0.10.0 inchangé).
+# Aucune n'est une vulnérabilité ; à réexaminer à chaque montée de version.
+ignore = [
+    { id = "RUSTSEC-2026-0206", reason = "rustybuzz 0.20.1 non maintenu (avis informatif, aucun correctif publié) ; dépendance transitive de krilla 0.8.2 (export PDF, vectorcraft-pdf L3) ; son remplacement relève de krilla et de l'amont" },
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser 0.25.1 non maintenu (avis informatif) ; tiré par rustybuzz, via krilla 0.8.2 ; même motif" },
+    { crate = "yoke-derive@0.8.3", reason = "version retirée du registre le 2026-09 sans avis de sécurité ; macro procédurale (compilation seulement) tirée par yoke 0.8.3 ; le Cargo.lock amont est gardé tel quel (--locked), mise à jour à la prochaine montée" },
+]
 
 [licenses]
 # Licences rencontrées dans le graphe web ; toute autre licence fait échouer la porte.
 allow = [
     "MIT",
     "Apache-2.0",
-    "Apache-2.0 WITH LLVM-exception",
+    "Apache-2.0 WITH LLVM-exception", # wasmparser
     "BSD-2-Clause",
     "BSD-3-Clause",
-    "ISC",
     "Zlib",
-    "BSL-1.0",
-    "Unicode-3.0",
-    "OFL-1.1",
-    "LicenseRef-UFL-1.0",
-    "CC0-1.0",
+    "BSL-1.0", # ryu
+    "Unicode-3.0", # icu_*, zerovec…
+    "OFL-1.1", # epaint_default_fonts (polices par défaut d'egui)
+    "Ubuntu-font-1.0", # epaint_default_fonts (Ubuntu Light)
+    "IJG", # jpeg-encoder : « based in part on the work of the Independent JPEG Group » (NOTICE)
 ]
 confidence-threshold = 0.8
 exceptions = []
