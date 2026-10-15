@@ -10,7 +10,8 @@
 //! binary sizes, correlation); anything else is ignored. Outgoing messages always name the parent
 //! origin as `targetOrigin`, never `*`, with fresh ULIDs.
 //!
-//! Handled: `evora:init`, `evora:open` (bytes), `evora:request-save`, `evora:saved` (checked only:
+//! Handled: `evora:init`, `evora:open` (bytes, or `new: true`: a blank document that has no Drive
+//! file yet, §7.1), `evora:request-save`, `evora:saved` (checked only:
 //! without `doc.saved-ack` the engine counts a document as saved once handed over and the host keeps
 //! its own save state, §6.3), `evora:lang`, `evora:theme`, `evora:purge`. Sent: `evora:ready`,
 //! `evora:failed`, `evora:ack`, `evora:dirty`, `evora:save`.
@@ -97,7 +98,8 @@ enum HostEvent {
     Lang { id: Option<String>, tag: Option<String> },
     /// Dark or light, from `evora:init` or `evora:theme`.
     Theme { id: Option<String>, dark: bool },
-    Open { id: String, doc_ref: String, name: String, bytes: Vec<u8> },
+    /// `evora:open`: the document's bytes, or `None` for a blank one (`new: true`).
+    Open { id: String, doc_ref: String, name: String, bytes: Option<Vec<u8>> },
     RequestSave { id: String, doc_ref: Option<String> },
     /// A save handed to the host's `download` couldn't go: the document counts as modified again.
     SaveRefused { uid: u64 },
@@ -134,6 +136,8 @@ struct Inner {
     pending_saves: Vec<String>,
     hosted: Option<Hosted>,
     last_dirty: Option<bool>,
+    /// The language code last written to the page's `lang` attribute.
+    page_lang: Option<&'static str>,
     /// The active document at the start of the frame part running now (a save acts on it).
     active: Option<u64>,
     ctx: Option<egui::Context>,
@@ -220,7 +224,7 @@ impl Bridge {
                         self.ack(&id, true, None);
                     }
                 }
-                HostEvent::Open { id, doc_ref, name, bytes } => self.open(app, &id, doc_ref, &name, &bytes),
+                HostEvent::Open { id, doc_ref, name, bytes } => self.open(app, &id, doc_ref, &name, bytes.as_deref()),
                 HostEvent::RequestSave { id, doc_ref } => self.request_save(app, &id, doc_ref.as_deref()),
                 HostEvent::SaveRefused { uid } => {
                     if let Some(st) = app.session.document_mut(uid) {
@@ -244,9 +248,11 @@ impl Bridge {
         self.inner.borrow_mut().active = app.session.active().map(|d| d.uid);
     }
 
-    /// After the app's logic or layout: `evora:dirty` when the hosted document's modified state
-    /// changed (and once after it opened).
+    /// After the app's logic or layout: the page's `lang` follows the language the UI is drawn in,
+    /// and `evora:dirty` goes when the hosted document's modified state changed (and once after it
+    /// opened).
     pub fn after_frame(&self, app: &VectorcraftApp) {
+        self.note_lang();
         let (uid, doc_ref) = {
             let inner = self.inner.borrow();
             match &inner.hosted {
@@ -270,6 +276,21 @@ impl Bridge {
         }
         if let Some(payload) = object(&[("dirty", dirty.into()), ("docRef", doc_ref.into())]) {
             self.send("evora:dirty", None, &payload, None);
+        }
+    }
+
+    /// The page's `lang` attribute is the language the UI is drawn in this frame (what the app took
+    /// from `evora:init`, `evora:lang` or `?lang=`), read back from the UI, not the one asked for.
+    fn note_lang(&self) {
+        let code = i18n::current().code();
+        let changed = {
+            let mut inner = self.inner.borrow_mut();
+            let changed = inner.page_lang != Some(code);
+            inner.page_lang = Some(code);
+            changed
+        };
+        if changed {
+            crate::web::set_page_lang(code);
         }
     }
 
@@ -499,8 +520,10 @@ impl Bridge {
             return;
         }
         if !new.is_undefined() {
+            // `new: true` (its only value): a blank document, which has no Drive file yet (§7.1).
             if new.as_bool() == Some(true) {
-                self.ack(id, false, Some("unsupported"));
+                self.inner.borrow_mut().events.push(HostEvent::Open { id: id.to_string(), doc_ref, name, bytes: None });
+                self.wake();
             }
             return;
         }
@@ -517,7 +540,7 @@ impl Bridge {
             return;
         }
         let bytes = js_sys::Uint8Array::new(&bytes).to_vec();
-        self.inner.borrow_mut().events.push(HostEvent::Open { id: id.to_string(), doc_ref, name, bytes });
+        self.inner.borrow_mut().events.push(HostEvent::Open { id: id.to_string(), doc_ref, name, bytes: Some(bytes) });
         self.wake();
     }
 
@@ -600,8 +623,9 @@ impl Bridge {
         self.wake();
     }
 
-    /// `evora:open`, in a frame: the document opens as a new tab and becomes the hosted one.
-    fn open(&self, app: &mut VectorcraftApp, id: &str, doc_ref: String, name: &str, bytes: &[u8]) {
+    /// `evora:open`, in a frame: the document (`bytes`, else a blank one) opens as a new tab and
+    /// becomes the hosted one.
+    fn open(&self, app: &mut VectorcraftApp, id: &str, doc_ref: String, name: &str, bytes: Option<&[u8]>) {
         // One document at a time (no `doc.multi`): the same `docRef` again reloads it, local
         // changes dropped (HOST-PROTOCOL §6.2, the host asked first); another one is refused.
         let previous = self.inner.borrow().hosted.as_ref().map(|h| (h.uid, h.doc_ref.clone()));
@@ -611,11 +635,16 @@ impl Bridge {
             return;
         }
         let before: Vec<u64> = app.session.documents().iter().map(|d| d.uid).collect();
-        // A document only: never a plug-in, presets or a library (`io::open_bytes` would install
-        // or import those).
-        if let Err(e) = vectorcraft_ui_egui::io::open_document(app, name, bytes, None, &Default::default()) {
+        let made = match bytes {
+            // A document only: never a plug-in, presets or a library (`io::open_bytes` would
+            // install or import those).
+            Some(bytes) => vectorcraft_ui_egui::io::open_document(app, name, bytes, None, &Default::default()).map_err(|e| (e, "invalid_content")),
+            // File › New with the app's default settings (what New Document starts from).
+            None => app.run("file.new", "{}".parse().unwrap_or_default()).map_err(|e| (e, "unsupported")),
+        };
+        if let Err((e, code)) = made {
             log::warn!("vectorcraft-web: the document from Evora didn't open: {e}");
-            self.ack(id, false, Some("invalid_content"));
+            self.ack(id, false, Some(code));
             return;
         }
         let Some(st) = app.session.active_mut().filter(|st| !before.contains(&st.uid)) else {
@@ -722,11 +751,11 @@ fn encode_active(app: &mut VectorcraftApp) -> Result<(Vec<u8>, fileio::SaveJob),
 }
 
 /// The interface language for an engine language tag, by E3's correspondence (any case or form;
-/// a language the UI hasn't, or none, gives English).
+/// a language the UI hasn't, or none, gives English). The page's `lang` follows once the UI draws
+/// in it ([`Bridge::note_lang`]).
 fn set_language(app: &mut VectorcraftApp, tag: Option<&str>) {
     let lang = tag.and_then(i18n::lang_from_tag).unwrap_or(i18n::Lang::EN);
     app.session.prefs.interface_language = lang.code().to_string();
-    crate::web::set_page_lang(lang.code());
 }
 
 /// `name` with the native extension (the host's name, else its stem and `.vectorcraft`), at most
