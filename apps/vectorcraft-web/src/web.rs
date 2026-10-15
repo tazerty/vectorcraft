@@ -333,7 +333,11 @@ fn fresh_canvas(old: &web_sys::HtmlCanvasElement) -> Result<web_sys::HtmlCanvasE
 /// The graphics are lost for good: the dead canvas goes (it would show a stale picture), the app
 /// (if still here) lets go of its recovery copies so the reloaded page offers them at once, and
 /// the page says what to do.
+///
+/// Evora (patch E5): hosted, the recovery copies live in memory ([`HostedStore`]) and go with the
+/// page: a reload can't bring them back, so the page never says it would.
 fn give_up(app: Option<VectorcraftApp>, kept: bool, bridge: Option<&Bridge>) {
+    let kept = kept && bridge.is_none();
     if let Some(mut app) = app {
         recovery::leave(&mut app.session);
     }
