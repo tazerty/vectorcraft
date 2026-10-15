@@ -30,13 +30,19 @@
 // capacités attendues ; aucune purge avant evora:init ; aucune réponse aux messages de version 2,
 // mal corrélés, hors schéma ou venus d'une origine ou d'une fenêtre non admises (un témoin de la
 // page parente, lui, reçoit sa réponse) ; init acquitté, restes purgés, langue et thème appliqués
-// au rendu ; refus codés (url, new, plafond + 1 octet, second docRef) ; ouverture d'un SVG reçu en
-// octets, dirty false, modification (collage), dirty true, evora:request-save → evora:save conforme
-// (document natif non vide), dirty false, puis « clean » ; réouverture des octets enregistrés ;
-// evora:theme et evora:lang à chaud ; evora:purge acquitté après effacement, stockage du moteur vide
-// et qui le reste. SMOKE_SABOTAGE=origin (evora-host.json admet une autre origine : le pont doit
-// rester muet) et SMOKE_SABOTAGE=detectors (un message légitime compté comme étranger, une clé semée
-// après la purge) sont les témoins sabordés : le banc doit y rougir, pour les raisons attendues.
+// au rendu ; refus codés (url, plafond + 1 octet, second docRef, en octets comme en document neuf) ;
+// ouverture d'un SVG reçu en octets, dirty false, modification (collage), dirty true,
+// evora:request-save → evora:save conforme (document natif non vide), dirty false, puis « clean » ;
+// réouverture des octets enregistrés ; evora:theme et evora:lang à chaud ; evora:purge acquitté après
+// effacement, stockage du moteur (localStorage, sessionStorage, IndexedDB, OPFS, Cache API) vide et
+// qui le reste. SMOKE_EHP_NEW=1 (scénario « pont-ehp-neuf ») : même déroulé, mais le document s'ouvre
+// vierge, sans octets (evora:open {docRef, name, new: true}, ce que la coquille envoie pour un document
+// qui n'a pas encore de fichier Drive, HOST-PROTOCOL §7.1), et son evora:save porte le nom de l'hôte
+// avec l'extension native. La page parente encadre le moteur avec le sandbox de la coquille
+// (public/js/creative/host.js : ni allow-downloads ni allow-popups). SMOKE_SABOTAGE=origin
+// (evora-host.json admet une autre origine : le pont doit rester muet) et SMOKE_SABOTAGE=detectors
+// (un message légitime compté comme étranger, une clé semée après la purge) sont les témoins
+// sabordés : le banc doit y rougir, pour les raisons attendues.
 //
 // Usage : node smoke.mjs <site> <rapport.json> [binaire chrome]
 
@@ -67,6 +73,9 @@ const SMOKE_EXPECT_BAR = (process.env.SMOKE_EXPECT_BAR || '').toLowerCase();
 const SMOKE_SEED = process.env.SMOKE_SEED === '1';
 const SMOKE_EHP = process.env.SMOKE_EHP === '1';
 const SMOKE_SABOTAGE = process.env.SMOKE_SABOTAGE || '';
+const SMOKE_EHP_NEW = process.env.SMOKE_EHP_NEW === '1';
+// Le sandbox de l'iframe que pose la coquille d'Evora (public/js/creative/host.js, SANDBOX_TOKENS).
+const HOST_SANDBOX = 'allow-scripts allow-same-origin allow-forms allow-modals allow-pointer-lock';
 // Ce que le moteur doit annoncer dans evora:ready (patch E4, EVORA-SIN-17).
 const EXPECTED_APP = 'sinopia-pro';
 const EXPECTED_CAPS = ['doc.dirty', 'doc.open', 'doc.request-save', 'doc.save', 'live.lang', 'live.theme', 'storage.purge'];
@@ -405,7 +414,7 @@ function parentHandler(origins) {
 ${head}
 </head><body><iframe id="engine" src="${engineSrc}" title="moteur"
 allow="fullscreen; clipboard-read; clipboard-write"
-sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"></iframe>${relays}</body></html>`;
+sandbox="${SMOKE_EHP ? HOST_SANDBOX : 'allow-scripts allow-same-origin allow-downloads allow-popups'}"></iframe>${relays}</body></html>`;
   return async (req, res) => {
     const url = new URL(req.url, 'http://parent.invalid');
     if (url.pathname === '/') {
@@ -768,6 +777,7 @@ const ENGINE_STORES = `(async () => {
     } else out.opfs = null;
   } catch (e) { out.opfs = 'erreur ' + e; }
   try { out.caches = typeof caches !== 'undefined' ? await caches.keys() : null; } catch (e) { out.caches = 'erreur ' + e; }
+  try { out.sessionStorage = Object.keys(sessionStorage).sort(); } catch (e) { out.sessionStorage = 'erreur ' + e; }
   return JSON.stringify(out);
 })()`;
 const PASTE = `(() => {
@@ -806,7 +816,7 @@ async function waitBar(test, ms = EHP_STEP_MS) {
 }
 
 async function ehpScenario() {
-  const ehp = { mode: SMOKE_SABOTAGE || 'normal', originC: report.originC, steps: [], messages: [], others: [], storage: {} };
+  const ehp = { mode: SMOKE_SABOTAGE || (SMOKE_EHP_NEW ? 'document neuf' : 'normal'), originC: report.originC, steps: [], messages: [], others: [], storage: {} };
   report.ehp = ehp;
   const step = (name, ok, detail = '') => {
     ehp.steps.push({ name, ok: !!ok, detail });
@@ -869,10 +879,9 @@ async function ehpScenario() {
   const control = await waitAck(controlId);
   step('témoin : evora:request-save de la page parente → clean', ackIs(control, true, 'clean'), J(control));
 
-  // 5. Refus codés : url (media.ranges non déclarée), new, plafond + 1 octet.
+  // 5. Refus codés : url (media.ranges non déclarée), plafond + 1 octet.
   const refusals = [
     ['url', 'capability', `__ehp.post('evora:open', { docRef: __ehp.ulid(), name: 'x.vectorcraft', url: 'https://medias.invalid/x' })`],
-    ['new', 'unsupported', `__ehp.post('evora:open', { docRef: __ehp.ulid(), name: 'x.vectorcraft', new: true })`],
     ['plafond + 1 octet', 'too_large', `(() => { const b = new ArrayBuffer(${MAX_DOC + 1}); return __ehp.post('evora:open', { docRef: __ehp.ulid(), name: 'x.svg', bytes: b }, { transfer: [b] }); })()`],
   ];
   for (const [what, code, expr] of refusals) {
@@ -881,15 +890,23 @@ async function ehpScenario() {
     step(`evora:open (${what}) → ${code}`, ackIs(a, false, code), J(a));
   }
 
-  // 6. Ouverture d'un document reçu en octets, puis dirty false.
+  // 6. Ouverture d'un document reçu en octets (ou, dans « pont-ehp-neuf », d'un document vierge
+  //    sans octets : evora:open {new: true}, HOST-PROTOCOL §7.1), puis dirty false.
   const docRef = await parentEval('__ehp.ulid()');
-  const openId = await parentEval(`(() => { const b = __ehp.text(${J(SMOKE_SVG)}); return __ehp.post('evora:open', { docRef: ${J(docRef)}, name: 'evora-smoke.svg', bytes: b }, { transfer: [b] }); })()`);
+  const docName = SMOKE_EHP_NEW ? 'evora-neuf' : 'evora-smoke.svg';
+  const savedName = SMOKE_EHP_NEW ? 'evora-neuf.vectorcraft' : 'evora-smoke.vectorcraft';
+  const openId = SMOKE_EHP_NEW
+    ? await parentEval(`__ehp.post('evora:open', { docRef: ${J(docRef)}, name: ${J(docName)}, new: true })`)
+    : await parentEval(`(() => { const b = __ehp.text(${J(SMOKE_SVG)}); return __ehp.post('evora:open', { docRef: ${J(docRef)}, name: ${J(docName)}, bytes: b }, { transfer: [b] }); })()`);
   const opened = await waitAck(openId);
-  if (!step('evora:open (octets) acquitté', ackIs(opened, true), J(opened))) return finishEhp(ehp);
+  if (!step(SMOKE_EHP_NEW ? 'evora:open (document neuf) acquitté' : 'evora:open (octets) acquitté', ackIs(opened, true), J(opened))) return finishEhp(ehp);
   const clean0 = await waitParent(`__ehp.all('evora:dirty').filter((m) => m.payload.dirty === false && m.payload.docRef === ${J(docRef)}).length >= 1`);
   step('evora:dirty false après ouverture', clean0);
   const otherId = await parentEval(`(() => { const b = __ehp.text(${J(SMOKE_SVG)}); return __ehp.post('evora:open', { docRef: __ehp.ulid(), name: 'autre.svg', bytes: b }, { transfer: [b] }); })()`);
-  step('second docRef → busy (un document à la fois)', ackIs(await waitAck(otherId), false, 'busy'));
+  step('second docRef (octets) → busy (un document à la fois)', ackIs(await waitAck(otherId), false, 'busy'));
+  const otherNewId = await parentEval(`__ehp.post('evora:open', { docRef: __ehp.ulid(), name: 'autre', new: true })`);
+  const otherNew = await waitAck(otherNewId);
+  step('second docRef (document neuf) → busy (un document à la fois)', ackIs(otherNew, false, 'busy'), J(otherNew));
 
   // 7. Une modification (collage d'un SVG dans le moteur) → dirty true.
   const pasted = await engineEval(PASTE).catch((e) => String(e));
@@ -902,7 +919,7 @@ async function ehpScenario() {
   const save = await waitParent(`__ehp.find('evora:save', ${J(rsId)})`);
   const sp = save ? save.payload : {};
   step('evora:request-save → evora:save conforme',
-    !!save && save.problems.length === 0 && sp.docRef === docRef && sp.name === 'evora-smoke.vectorcraft' && sp.saveAs === false && sp.bytes && sp.bytes.arrayBuffer >= 1,
+    !!save && save.problems.length === 0 && sp.docRef === docRef && sp.name === savedName && sp.saveAs === false && sp.bytes && sp.bytes.arrayBuffer >= 1,
     J(save));
   const cleaned = await waitParent(`(() => { const d = __ehp.all('evora:dirty'); const s = d.findIndex((m) => m.payload.dirty === true); return s >= 0 && d.slice(s + 1).some((m) => m.payload.dirty === false); })()`);
   step('evora:dirty false après evora:save', cleaned);
@@ -914,7 +931,7 @@ async function ehpScenario() {
   // 9. Réouverture des octets enregistrés (même docRef : rechargement de la version du serveur).
   if (save) {
     const before = await parentEval("__ehp.all('evora:dirty').length");
-    const reopenId = await parentEval(`(() => { const b = __ehp.saved.slice(0); return __ehp.post('evora:open', { docRef: ${J(docRef)}, name: 'evora-smoke.vectorcraft', bytes: b }, { transfer: [b] }); })()`);
+    const reopenId = await parentEval(`(() => { const b = __ehp.saved.slice(0); return __ehp.post('evora:open', { docRef: ${J(docRef)}, name: ${J(savedName)}, bytes: b }, { transfer: [b] }); })()`);
     step('réouverture du document enregistré', ackIs(await waitAck(reopenId), true));
     step('evora:dirty false après réouverture', await waitParent(`__ehp.all('evora:dirty').slice(${before}).some((m) => m.payload.dirty === false)`));
   }
@@ -954,6 +971,9 @@ async function ehpScenario() {
       ...(Array.isArray(stores.indexedDB) ? stores.indexedDB.map((n) => `indexedDB:${n}`) : []),
       ...(Array.isArray(stores.opfs) ? stores.opfs.map((n) => `opfs:${n}`) : []),
       ...(Array.isArray(stores.caches) ? stores.caches.map((n) => `caches:${n}`) : []),
+      ...(Array.isArray(stores.sessionStorage) ? stores.sessionStorage.map((n) => `sessionStorage:${n}`) : []),
+      // Un stockage illisible ne prouve pas qu'il est vide.
+      ...['indexedDB', 'opfs', 'caches', 'sessionStorage'].filter((k) => typeof stores[k] === 'string').map((k) => `${k}:${stores[k]}`),
     ];
     step(`stockage du moteur vide après evora:purge (${when})`, leftovers.length === 0, J(leftovers));
     step(`témoin intact après evora:purge (${when})`, keys.includes(SEED_WITNESS_KEY), J(keys));

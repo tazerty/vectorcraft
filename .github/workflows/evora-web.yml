@@ -416,8 +416,8 @@ jobs:
         if: ${{ !cancelled() && steps.pkg.outcome == 'success' }}
         run: python3 -I packaging/evora/gates.py csp "${{ steps.pkg.outputs.pkg }}/index.html" "${{ steps.pkg.outputs.pkg }}/csp-hashes.txt" | tee -a "$GITHUB_STEP_SUMMARY"
 
-      # Quatre passages de smoke.mjs ; la porte est rouge si « base » ou « pont-ehp » rougit, ou si
-      # un témoin sabordé reste vert ou rougit pour une autre raison que la sienne.
+      # Cinq passages de smoke.mjs ; la porte est rouge si « base », « pont-ehp » ou « pont-ehp-neuf »
+      # rougit, ou si un témoin sabordé reste vert ou rougit pour une autre raison que la sienne.
       - name: Porte « tests de fumée » (Chrome sans interface, iframe depuis une autre origine)
         if: ${{ !cancelled() && steps.pkg.outcome == 'success' }}
         env:
@@ -455,6 +455,10 @@ jobs:
           # « pont-ehp » : origine B admise par evora-host.json (servi par le banc comme l'écrirait le
           # provisionnement) ; déroulé complet du pont EHP v1 et de la purge (smoke.mjs, ehpScenario).
           smoke pont-ehp SMOKE_EHP=1 SMOKE_LANG=en SMOKE_HOST=evora SMOKE_SEED=1 \
+            SMOKE_THEME=light SMOKE_EXPECT_BAR=e4e4e4 || gate=1
+          # « pont-ehp-neuf » : même déroulé, le document s'ouvre vierge, sans octets
+          # (evora:open {new: true} : document qui n'a pas encore de fichier Drive, HOST-PROTOCOL §7.1).
+          smoke pont-ehp-neuf SMOKE_EHP=1 SMOKE_EHP_NEW=1 SMOKE_LANG=en SMOKE_HOST=evora SMOKE_SEED=1 \
             SMOKE_THEME=light SMOKE_EXPECT_BAR=e4e4e4 || gate=1
           # Témoins sabordés : le même banc doit rougir.
           smoke temoin-origine SMOKE_EHP=1 SMOKE_SABOTAGE=origin SMOKE_LANG=en SMOKE_HOST=evora SMOKE_SEED=1 SMOKE_THEME=light
