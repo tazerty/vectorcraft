@@ -12,6 +12,7 @@
 # Portes (bloquantes depuis le patch E1) :
 #   job licences : cargo-deny (licences, avis de sécurité, interdits, sources) et cargo-about
 #                  (LICENSES/THIRD-PARTY-LICENSES.txt) ;
+#   job tests    : tests natifs ciblés des modules touchés par Evora (EVORA-SIN-15) ;
 #   job web      : marques ArtCraft dans le bundle, fichiers d'hébergement, termes sensibles (E9),
 #                  émojis des catalogues affichés (E10), empreintes CSP, tests de fumée Chrome depuis
 #                  une autre origine : « base » (langue imposée E3, thème imposé vérifié au rendu E2,
@@ -19,8 +20,9 @@
 #                  (pont EHP v1 natif E4 et purge E5 sur messages vérifiés), et deux témoins sabordés
 #                  qui doivent rougir pour les raisons attendues (origine non admise, détecteurs).
 #                  Sorties .br et .gz, mesure de taille.
-# Le zip et l'artefact ne sont produits que si toutes les portes sont vertes ; ils portent le nom
-# Evora evora-sinopia-pro-web-<tag> (EVORA-SIN-10).
+# Le zip et l'artefact ne sont produits que si toutes les portes sont vertes, celles des trois jobs
+# (le job web attend licences ET tests, EVORA-SIN-25) ; ils portent le nom Evora
+# evora-sinopia-pro-web-<tag> (EVORA-SIN-10).
 name: Evora web
 
 on:
@@ -225,7 +227,10 @@ jobs:
 
   web:
     name: Web (wasm) Evora
-    needs: licences
+    # L'artefact n'existe que si les tests natifs sont verts : sans tests dans needs, un run rouge
+    # publiait quand même evora-sinopia-pro-web-<tag> (run 38371007297), sous le même nom qu'un vert.
+    # Aucun if: au niveau du job : un job requis en échec ou sauté fait sauter celui-ci.
+    needs: [licences, tests]
     runs-on: ubuntu-24.04
     # Le job web de la release amont dure environ 12 minutes avec cache ; marge pour un build à froid.
     timeout-minutes: 90
