@@ -178,6 +178,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     steps:
+      - name: Témoin sabordé (EVORA-SIN-26, retiré par EVORA-SIN-27) - tests natifs en échec exprès
+        run: |
+          echo "::error::témoin sabordé : le job tests échoue exprès ; le job web ne doit pas tourner"
+          exit 1
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
