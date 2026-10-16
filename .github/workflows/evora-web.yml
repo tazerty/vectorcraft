@@ -65,7 +65,10 @@ env:
 jobs:
   licences:
     name: Licences et avis de sécurité (cargo-deny, cargo-about)
-    runs-on: ubuntu-latest
+    # Image épinglée sur les trois jobs : le libellé ubuntu-latest bascule vers Ubuntu 26 à partir du
+    # 2026-10-19 (actions/runner-images#14748) ; Chrome, Node, Python, brotli et zip des portes
+    # viennent de cette image.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -170,7 +173,7 @@ jobs:
 
   tests:
     name: Tests natifs ciblés (modules touchés par Evora)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 75
     steps:
       - name: Checkout
@@ -223,7 +226,7 @@ jobs:
   web:
     name: Web (wasm) Evora
     needs: licences
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Le job web de la release amont dure environ 12 minutes avec cache ; marge pour un build à froid.
     timeout-minutes: 90
     steps:
