@@ -45,10 +45,10 @@
 // sabordés : le banc doit y rougir, pour les raisons attendues.
 //
 // Montée v0.17.0 (lot SIN-FK, patchs SPR) : le même déroulé exerce aussi le catalogue des commandes
-// (evora:commands après l'init : liste blanche hors espace de la coquille, empreinte, commande
+// (evora:commands après l'init : liste blanche hors espace de la coquille et sans chargeur de code, empreinte, commande
 // destructive refusée sans confirmed puis admise, paramètre refusé), la sortie au clavier (F6 →
 // evora:focus-out), une police injectée (evora:font, et des octets corrompus refusés), un livre de
-// couleurs refusé (SPR-08), l'accusé d'enregistrement (SPR-01 : un hôte muet, puis un refus, ne
+// couleurs refusé (SPR-08 ; une palette ouverte admise en témoin de la mesure), l'accusé d'enregistrement (SPR-01 : un hôte muet, puis un refus, ne
 // rendent jamais le document « enregistré » ; seul ok:true le fait), l'export vers l'hôte (SPR-02 :
 // evora:export, zéro téléchargement relevé par le protocole DevTools) et le sélecteur de l'hôte
 // (SPR-03 : evora:pick pour Placer et Ouvrir, aucun input[type=file]). SMOKE_COMMANDS_OUT : le premier
@@ -93,6 +93,8 @@ const EXPECTED_CAPS = ['command', 'command.catalog', 'doc.dirty', 'doc.open', 'd
 // Commandes de l'espace de la coquille admises au catalogue, une par une (host_commands.rs).
 const FILE_ADMITTED = ['file.place', 'file.exportAs', 'file.export.png', 'file.export.svg', 'file.export.pdf', 'file.exportForScreens',
   'file.exportSelection', 'file.saveForWeb'];
+// Ce qui installe, recharge ou vérifie du code (modules, scripts) : jamais au catalogue (host_commands.rs).
+const CODE_PREFIXES = ['plugin.', 'ui.installPlugin', 'ui.checkScript'];
 // Présentes au catalogue de ce build (menus de l'amont relus au tag).
 const CATALOG_EXPECTED = ['edit.undo', 'object.group', 'select.all', 'file.place', 'file.exportAs', 'window.workspace.reset'];
 const SMOKE_COMMANDS_OUT = process.env.SMOKE_COMMANDS_OUT || '';
@@ -986,6 +988,8 @@ async function ehpScenario() {
     const ids = (catalog.commands || []).map((c) => c.id);
     const shell = ids.filter((id) => (id.startsWith('file.') && !FILE_ADMITTED.includes(id)) || /^(app|help|prefs)\./.test(id) || id.startsWith('edit.preferences'));
     step('catalogue : aucune commande de la coquille (liste blanche)', shell.length === 0, J(shell));
+    const code = ids.filter((id) => CODE_PREFIXES.some((p) => id.startsWith(p)));
+    step('catalogue : aucune commande qui charge du code (modules, scripts)', code.length === 0, J(code));
     const missing = CATALOG_EXPECTED.filter((id) => !ids.includes(id));
     step('catalogue : commandes attendues présentes', missing.length === 0 && ids.length >= 50, `${ids.length} commandes, absentes ${J(missing)}`);
     const reset = (catalog.commands || []).find((c) => c.id === 'window.workspace.reset');
@@ -999,7 +1003,7 @@ async function ehpScenario() {
   const cmd = async (command, extra = {}) => waitAck(await parentEval(`__ehp.post('evora:command', ${J({ command, params: {}, ...extra })})`));
   const diag = await cmd('diag.stats');
   step('commande diag.stats → résultat', ackIs(diag, true) && !!diag.payload.result && typeof diag.payload.result.version === 'string', J(diag));
-  for (const [command, why] of [['file.save', "espace de la coquille"], ['app.quit', "espace de la coquille"], ['evora.inconnue', 'inconnue']]) {
+  for (const [command, why] of [['file.save', "espace de la coquille"], ['app.quit', "espace de la coquille"], ['plugin.reload', 'charge du code'], ['evora.inconnue', 'inconnue']]) {
     const a = await cmd(command);
     step(`commande ${command} (${why}) → capability`, ackIs(a, false, 'capability'), J(a));
   }
@@ -1027,17 +1031,31 @@ async function ehpScenario() {
   step('evora:font (octets corrompus) → invalid_content', ackIs(badFont, false, 'invalid_content'), J(badFont));
 
   // 3 quinquies. Livre de couleurs (.acb, SPR-08) : jamais lu hébergé, quel que soit le chemin
-  //    (ici window.vectorcraft.openFile, comme un dépôt).
+  //    (ici window.vectorcraft.openFile, comme un dépôt). Le moteur nomme un livre chargé d'après
+  //    son fichier (« evora-temoin »), pas d'après son titre : la mesure compte donc les
+  //    bibliothèques NEUVES de swatch.library.list (identifiants absents avant l'envoi), quel que
+  //    soit leur nom (le filtre sur le titre du run 40624938242 ne pouvait jamais rougir). Témoin
+  //    de la mesure : une palette ouverte (.gpl), admise hébergée, doit y apparaître, sinon la
+  //    mesure ne voit rien et ne prouve rien. Les panneaux de bibliothèque ouverts sont refermés.
   const books = await engineEval(`(async () => {
+    const list = async () => { const l = await window.vectorcraft.execute('swatch.library.list', {}).catch(() => null); return Array.isArray(l && l.libraries) ? l.libraries : null; };
+    const ids = (ls) => new Set((ls || []).map((l) => l.id));
+    const fresh = (before, after) => after ? after.filter((l) => !before.has(l.id)).map((l) => ({ id: l.id, name: l.name, category: l.category })) : null;
+    const pause = () => new Promise((r) => setTimeout(r, 2000));
     const units = (s) => { const b = [s.length >>> 24, (s.length >>> 16) & 255, (s.length >>> 8) & 255, s.length & 255]; for (const c of s) { const u = c.charCodeAt(0); b.push(u >> 8, u & 255); } return b; };
     const b = [0x38, 0x42, 0x43, 0x42, 0, 1, 0x0b, 0xb8, ...units('Evora Temoin'), ...units(''), ...units(''), ...units(''), 0, 1, 0, 7, 0, 0, 0, 0, ...units('Rouge'), ...[...'TST001'].map((c) => c.charCodeAt(0)), 228, 0, 43];
+    const start = await list();
     window.vectorcraft.openFile('evora-temoin.acb', new Uint8Array(b));
-    await new Promise((r) => setTimeout(r, 2000));
-    const l = await window.vectorcraft.execute('swatch.library.list', {}).catch((e) => ({ error: String(e) }));
-    return JSON.stringify(l);
+    await pause();
+    const afterBook = await list();
+    window.vectorcraft.openFile('evora-temoin.gpl', new TextEncoder().encode('GIMP Palette\\nName: Evora Temoin GPL\\n228 0 43\\tRouge\\n'));
+    await pause();
+    const afterPalette = await list();
+    await window.vectorcraft.execute('window.swatchLibrary', { library: null }).catch(() => null);
+    return JSON.stringify({ listed: Array.isArray(start), book: start ? fresh(ids(start), afterBook) : null, palette: afterBook ? fresh(ids(afterBook), afterPalette) : null });
   })()`, true).then(JSON.parse).catch((e) => ({ error: String(e) }));
-  const loaded = Array.isArray(books.libraries) ? books.libraries.filter((l) => /Evora Temoin/.test(l.name || '')) : null;
-  step('livre de couleurs (.acb) refusé hébergé (SPR-08)', Array.isArray(loaded) && loaded.length === 0, J(loaded || books));
+  step('livre de couleurs (.acb) refusé hébergé (SPR-08)', Array.isArray(books.book) && books.book.length === 0, J(books));
+  step('palette ouverte (.gpl) admise hébergée (témoin de la mesure SPR-08)', Array.isArray(books.palette) && books.palette.length === 1, J(books));
 
   // 4. Messages à ignorer : origine C non admise, autre fenêtre de l'origine B, version 2, requête
   //    portant re, raison hors schéma, champ de charge utile en trop, type inconnu. Un témoin de la
