@@ -533,8 +533,20 @@ fn services(inbox: Inbox, place_inbox: PlaceInbox, ctx: egui::Context, recovery:
         place_async: Some(Box::new(move || {
             // Evora (patch SPR-03): hosted, the host's picker (`evora:pick {purpose: "import"}`),
             // never the disk.
-            if let Some(b) = &place_bridge {
-                b.pick("import");
+            // SABORDAGE QA (EVORA-SIN-34) S7 : hébergé, Placer ouvre le sélecteur de fichiers du navigateur.
+            if place_bridge.is_some() {
+                if let Some(doc) = web_sys::window().and_then(|w| w.document())
+                    && let Ok(el) = doc.create_element("input")
+                {
+                    let _ = el.set_attribute("type", "file");
+                    let _ = el.set_attribute("style", "display:none");
+                    if let Some(body) = doc.body() {
+                        let _ = body.append_child(&el);
+                    }
+                    if let Ok(h) = el.dyn_into::<web_sys::HtmlElement>() {
+                        h.click();
+                    }
+                }
                 return;
             }
             let inbox = picked.clone();
@@ -585,6 +597,10 @@ fn services(inbox: Inbox, place_inbox: PlaceInbox, ctx: egui::Context, recovery:
             // the host opened goes to it as `evora:save`, any other file as `evora:export`, else
             // the write is refused.
             if let Some(b) = &bridge {
+                // SABORDAGE QA (EVORA-SIN-34) S2 : un PNG part en téléchargement.
+                if name.ends_with(".png") {
+                    return download(name, bytes);
+                }
                 return b.take_download(name, bytes);
             }
             download(name, bytes).inspect_err(|e| log::error!("download of {name} failed: {e}"))

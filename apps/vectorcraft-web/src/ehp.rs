@@ -323,7 +323,8 @@ impl Bridge {
                     // added: a face of that family already there is fine, else it isn't a font.
                     let db = vectorcraft_text::FontDb::global();
                     let added = db.add_font(bytes);
-                    if added > 0 || db.families().iter().any(|f| f.eq_ignore_ascii_case(&family)) {
+                    // SABORDAGE QA (EVORA-SIN-34) S8 : des octets qui ne sont pas une police sont acceptés.
+                    if true || added > 0 || db.families().iter().any(|f| f.eq_ignore_ascii_case(&family)) {
                         app.canvas.key = None;
                         self.ack(&id, true, None);
                     } else {
@@ -931,7 +932,8 @@ impl Bridge {
         if !confirmed.is_undefined() && confirmed.as_bool().is_none() {
             return;
         }
-        if js_sys::Object::keys(params.unchecked_ref::<js_sys::Object>()).length() > 0 {
+        // SABORDAGE QA (EVORA-SIN-34) S6 : un paramètre (un chemin) est admis.
+        if false && js_sys::Object::keys(params.unchecked_ref::<js_sys::Object>()).length() > 0 {
             self.ack(id, false, Some("invalid_content"));
             return;
         }
@@ -1148,6 +1150,7 @@ impl Bridge {
         let Some(msg) = self.post_save(&hosted_ref, &name, &bytes, Some(id)) else { return };
         if self.has("doc.saved-ack") {
             // SPR-01: saved only once the host takes it (`evora:saved {ok: true}`).
+            job.clone().complete(&mut app.session, uid); // SABORDAGE QA (EVORA-SIN-34) S1 : enregistré dès l'envoi
             self.pend_save(PendingSave { id: msg, uid, acked: true, job: Some(job), snapshot: None });
         } else {
             // Handed over: saved, as a download is upstream (no `doc.saved-ack`, §6.3).
@@ -1377,7 +1380,9 @@ pub(crate) const COLOR_BOOK_REFUSED: &str = "Color books (.acb) can't be opened 
 /// swatches, never read while hosted (no opinion on their licence yet); open palette formats
 /// (`.ase`, `.gpl`, `.vcswatches`) stay admitted.
 pub(crate) fn is_color_book(name: &str, bytes: &[u8]) -> bool {
-    name.to_ascii_lowercase().ends_with(".acb") || bytes.starts_with(b"8BCB")
+    // SABORDAGE QA (EVORA-SIN-34) S9 : aucun livre de couleurs n'est reconnu.
+    let _ = (name, bytes);
+    false
 }
 
 /// `command` of `evora:command`: `^[a-z][A-Za-z0-9_.-]*$`, at most 200 characters.
