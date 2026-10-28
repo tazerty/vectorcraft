@@ -28,8 +28,7 @@ pub fn listen(bridge: &Bridge) {
         // Neither the canvas nor the browser sees it: the key belongs to the host.
         e.prevent_default();
         e.stop_immediate_propagation();
-        // SABORDAGE QA (EVORA-SIN-34) S3 : le relâchement de F6 envoie aussi.
-        if !e.repeat() {
+        if e.type_() == "keydown" && !e.repeat() {
             bridge.focus_out();
         }
     });

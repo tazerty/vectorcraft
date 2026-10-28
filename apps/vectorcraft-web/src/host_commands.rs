@@ -30,9 +30,8 @@ use vectorcraft_ui_egui::menus::{self, Item};
 const SHELL_PREFIXES: [&str; 7] = ["file.", "app.", "help.", "prefs.", "edit.preferences", "appearance", "window.brightness"];
 
 /// From `file.*`, one by one: File › Place (the host's picker) and the exports (the host's Drive).
-// SABORDAGE QA (EVORA-SIN-34) S5 : file.save, de l'espace de la coquille, entre dans la liste blanche.
-pub const FILE_ADMITTED: [&str; 9] =
-    ["file.save", "file.place", "file.exportAs", "file.export.png", "file.export.svg", "file.export.pdf", "file.exportForScreens", "file.exportSelection", "file.saveForWeb"];
+pub const FILE_ADMITTED: [&str; 8] =
+    ["file.place", "file.exportAs", "file.export.png", "file.export.svg", "file.export.pdf", "file.exportForScreens", "file.exportSelection", "file.saveForWeb"];
 
 /// The commands that lose what Edit › Undo can't bring back (the undo history, a workspace, the
 /// toolbar, the task bar or keyboard shortcuts as the user arranged them): the host confirms them
@@ -136,8 +135,9 @@ pub fn run(app: &mut VectorcraftApp, command: &str, confirmed: bool, catalog: bo
     if !catalog || !in_catalog(app, command) {
         return Err("capability");
     }
-    // SABORDAGE QA (EVORA-SIN-34) S4 : une commande destructive passe sans confirmed.
-    let _ = confirmed;
+    if DESTRUCTIVE.contains(&command) && !confirmed {
+        return Err("forbidden");
+    }
     if !menus::enabled(app, command) {
         return Err("busy");
     }
