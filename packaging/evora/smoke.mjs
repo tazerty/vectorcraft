@@ -44,11 +44,21 @@
 // (un message légitime compté comme étranger, une clé semée après la purge) sont les témoins
 // sabordés : le banc doit y rougir, pour les raisons attendues.
 //
+// Montée v0.17.0 (lot SIN-FK, patchs SPR) : le même déroulé exerce aussi le catalogue des commandes
+// (evora:commands après l'init : liste blanche hors espace de la coquille, empreinte, commande
+// destructive refusée sans confirmed puis admise, paramètre refusé), la sortie au clavier (F6 →
+// evora:focus-out), une police injectée (evora:font, et des octets corrompus refusés), un livre de
+// couleurs refusé (SPR-08), l'accusé d'enregistrement (SPR-01 : un hôte muet, puis un refus, ne
+// rendent jamais le document « enregistré » ; seul ok:true le fait), l'export vers l'hôte (SPR-02 :
+// evora:export, zéro téléchargement relevé par le protocole DevTools) et le sélecteur de l'hôte
+// (SPR-03 : evora:pick pour Placer et Ouvrir, aucun input[type=file]). SMOKE_COMMANDS_OUT : le premier
+// catalogue reçu est écrit dans ce fichier (commands.json de l'artefact).
+//
 // Usage : node smoke.mjs <site> <rapport.json> [binaire chrome]
 
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -78,7 +88,14 @@ const SMOKE_EHP_NEW = process.env.SMOKE_EHP_NEW === '1';
 const HOST_SANDBOX = 'allow-scripts allow-same-origin allow-forms allow-modals allow-pointer-lock';
 // Ce que le moteur doit annoncer dans evora:ready (patch E4, EVORA-SIN-17).
 const EXPECTED_APP = 'sinopia-pro';
-const EXPECTED_CAPS = ['doc.dirty', 'doc.open', 'doc.request-save', 'doc.save', 'live.lang', 'live.theme', 'storage.purge'];
+const EXPECTED_CAPS = ['command', 'command.catalog', 'doc.dirty', 'doc.open', 'doc.request-save', 'doc.save', 'doc.saved-ack',
+  'export.drive', 'font.inject', 'live.lang', 'live.theme', 'pick.drive', 'storage.memory', 'storage.purge', 'ui.focus-out'];
+// Commandes de l'espace de la coquille admises au catalogue, une par une (host_commands.rs).
+const FILE_ADMITTED = ['file.place', 'file.exportAs', 'file.export.png', 'file.export.svg', 'file.export.pdf', 'file.exportForScreens',
+  'file.exportSelection', 'file.saveForWeb'];
+// Présentes au catalogue de ce build (menus de l'amont relus au tag).
+const CATALOG_EXPECTED = ['edit.undo', 'object.group', 'select.all', 'file.place', 'file.exportAs', 'window.workspace.reset'];
+const SMOKE_COMMANDS_OUT = process.env.SMOKE_COMMANDS_OUT || '';
 // Plafond transmis par evora:init ; la fixture « trop grande » en est dérivée (plafond + 1 octet).
 const MAX_DOC = 1048576;
 const EHP_STEP_MS = 15_000;
@@ -137,6 +154,7 @@ const report = {
   theme: { requested: SMOKE_THEME || null, expectedBar: SMOKE_EXPECT_BAR || null, dominantBar: null },
   storage: { host: SMOKE_HOST || null, seeded: SMOKE_SEED ? [SEED_RECOVERY_KEY, SEED_WITNESS_KEY] : [], after: null },
   parentMessages: [],
+  downloads: [],
   ehp: null,
   timeline: { contextA: null, firstProbe: null, polls: 0 },
   crashed: false,
@@ -283,7 +301,12 @@ function harness(cfg) {
     'rate_limited', 'read_only', 'busy', 'capability', 'network', 'server', 'timeout'];
   const FAIL = ['no_webgl2', 'wasm', 'memory', 'panic', 'unsupported_browser', 'protocol', 'init'];
   const CAPS = ['doc.open', 'doc.save', 'doc.saved-ack', 'doc.dirty', 'doc.multi', 'doc.request-save', 'export.drive', 'media.need',
-    'media.ranges', 'pick.drive', 'command', 'storage.ns', 'storage.memory', 'storage.purge', 'live.lang', 'live.theme', 'font.inject', 'author'];
+    'media.ranges', 'pick.drive', 'command', 'storage.ns', 'storage.memory', 'storage.purge', 'live.lang', 'live.theme', 'font.inject', 'author',
+    'ui.focus-out', 'ui.activity', 'drop.files', 'prefs.sync', 'command.catalog'];
+  const NAME_BAD = /[\/\\\u0000-\u001f\u007f]/;
+  const MIME_RE = /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/;
+  const ACCEPT_RE = /^(\.[a-z0-9]+|[a-z0-9.+-]+\/[a-z0-9.+*-]+)$/;
+  const CMD_RE = /^[a-z][A-Za-z0-9_.-]*$/;
   const frame = () => document.getElementById('engine');
   const H = { log: [], others: [], framesReady: {}, saved: null, ids: { ignored: [], foreign: [] } };
   window.__ehp = H;
@@ -340,6 +363,48 @@ function harness(cfg) {
         if (typeof pl.dirty !== 'boolean') p.push('dirty non booléen');
         if ('docRef' in pl && (typeof pl.docRef !== 'string' || !ULID.test(pl.docRef))) p.push('docRef non ULID');
         break;
+      case 'evora:export':
+        only('docRef', 'name', 'mime', 'bytes');
+        needRe(false);
+        if ('docRef' in pl && (typeof pl.docRef !== 'string' || !ULID.test(pl.docRef))) p.push('docRef non ULID');
+        if (typeof pl.name !== 'string' || pl.name.length < 1 || [...pl.name].length > 255 || NAME_BAD.test(pl.name)) p.push('name hors schéma');
+        if (typeof pl.mime !== 'string' || pl.mime.length > 120 || !MIME_RE.test(pl.mime)) p.push('mime hors schéma');
+        if (!(pl.bytes instanceof ArrayBuffer) || pl.bytes.byteLength < 1 || pl.bytes.byteLength > cfg.maxDoc) p.push('bytes hors schéma (ArrayBuffer de 1 octet au plafond)');
+        break;
+      case 'evora:pick':
+        only('purpose', 'accept', 'multiple', 'forPath');
+        needRe(false);
+        if (!['open', 'import', 'relink'].includes(pl.purpose)) p.push(`purpose ${pl.purpose}`);
+        if (!Array.isArray(pl.accept) || pl.accept.length < 1 || pl.accept.length > 32 || new Set(pl.accept).size !== pl.accept.length
+          || pl.accept.some((a) => typeof a !== 'string' || !ACCEPT_RE.test(a))) p.push(`accept ${JSON.stringify(pl.accept)}`);
+        if (typeof pl.multiple !== 'boolean') p.push('multiple non booléen');
+        break;
+      case 'evora:focus-out':
+        only();
+        needRe(false);
+        break;
+      case 'evora:commands': {
+        only('lang', 'count', 'hash', 'params', 'commands');
+        needRe(false);
+        const cs = pl.commands;
+        if (typeof pl.lang !== 'string' || !pl.lang) p.push('lang absente');
+        if (typeof pl.hash !== 'string' || !/^[0-9a-f]{16}$/.test(pl.hash)) p.push(`hash ${pl.hash}`);
+        if (!Array.isArray(cs) || pl.count !== cs.length) p.push('count différent de commands.length');
+        if (!pl.params || pl.params.type !== 'object' || pl.params.maxProperties !== 0) p.push(`params ${JSON.stringify(pl.params)}`);
+        if (Array.isArray(cs)) {
+          const ids = cs.map((c) => c && c.id);
+          if (new Set(ids).size !== ids.length) p.push('id de commande en double');
+          for (const c of cs) {
+            if (!c || typeof c.id !== 'string' || !CMD_RE.test(c.id) || typeof c.label !== 'string' || !Array.isArray(c.path)
+              || typeof c.enabled !== 'boolean' || typeof c.destructive !== 'boolean'
+              || Object.keys(c).some((k) => !['id', 'label', 'path', 'enabled', 'destructive'].includes(k))) {
+              p.push(`commande hors schéma ${JSON.stringify(c).slice(0, 120)}`);
+              break;
+            }
+          }
+        }
+        break;
+      }
       case 'evora:save':
         only('docRef', 'name', 'saveAs', 'bytes');
         if (typeof pl.docRef !== 'string' || !ULID.test(pl.docRef)) p.push('docRef non ULID');
@@ -374,6 +439,7 @@ function harness(cfg) {
       problems: plain ? conform(d) : ['message non objet simple'],
     });
     if (plain && d.type === 'evora:save' && d.payload && d.payload.bytes instanceof ArrayBuffer) H.saved = d.payload.bytes.slice(0);
+    if (plain && d.type === 'evora:commands' && d.payload && !H.catalog) H.catalog = JSON.parse(JSON.stringify(d.payload));
   });
   // Poste un message au moteur, avec l'origine du moteur comme targetOrigin → son id.
   H.post = (type, payload, o = {}) => {
@@ -396,6 +462,8 @@ function harness(cfg) {
   H.readyId = () => (H.all('evora:ready')[0] || {}).id || null;
   H.text = (t) => new TextEncoder().encode(t).buffer;
   H.ulid = ulid;
+  // Les octets d'une police servie par la page parente (/evora-font.ttf) → ArrayBuffer.
+  H.font = () => fetch('/evora-font.ttf').then((r) => (r.ok ? r.arrayBuffer() : null));
 }
 
 function parentHandler(origins) {
@@ -420,6 +488,9 @@ sandbox="${SMOKE_EHP ? HOST_SANDBOX : 'allow-scripts allow-same-origin allow-dow
     if (url.pathname === '/') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(html);
+    } else if (SMOKE_EHP && url.pathname === '/evora-font.ttf' && fontFile) {
+      res.writeHead(200, { 'Content-Type': 'font/ttf', 'Cache-Control': 'no-store' });
+      res.end(await readFile(fontFile));
     } else if (SMOKE_EHP && url.pathname === '/witness') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(RELAY_HTML);
@@ -428,6 +499,26 @@ sandbox="${SMOKE_EHP ? HOST_SANDBOX : 'allow-scripts allow-same-origin allow-dow
       res.end('not found');
     }
   };
+}
+
+// La police que la page parente injecte (SPR-04) : Noto Sans Georgian du site (fonts/<sha16>/).
+let fontFile = null;
+async function findFont(dir, depth = 0) {
+  let entries = [];
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isFile() && /^NotoSansGeorgian.*\.ttf$/i.test(e.name)) return full;
+    if (e.isDirectory() && depth < 3) {
+      const found = await findFont(full, depth + 1);
+      if (found) return found;
+    }
+  }
+  return null;
 }
 
 async function foreignHandler(req, res) {
@@ -457,6 +548,10 @@ function send(method, params = {}, sessionId) {
   chrome.stdio[3].write(JSON.stringify(msg) + '\0');
   return new Promise((resolve, reject) => pending.set(id, { resolve, reject, method }));
 }
+
+// Une tentative de téléchargement depuis le cadre du moteur (sandbox sans allow-downloads) : Chrome la
+// refuse et l'écrit dans la console du cadre.
+const DOWNLOAD_BLOCKED = /download is disallowed|allow-downloads/i;
 
 function remember(list, item, max = 200) {
   list.push(item);
@@ -503,8 +598,13 @@ function onEvent(method, params, session) {
       remember(report.exceptions, { text: (d.exception && d.exception.description) || d.text || '?', url: d.url || null });
       break;
     }
+    case 'Browser.downloadWillBegin':
+    case 'Page.downloadWillBegin':
+      remember(report.downloads, { event: method, url: params.url || null, name: params.suggestedFilename || null });
+      break;
     case 'Runtime.consoleAPICalled': {
       const text = (params.args || []).map(argText).join(' ').slice(0, 500);
+      if (DOWNLOAD_BLOCKED.test(text)) remember(report.downloads, { event: 'console', text });
       if (text.includes('wgpu backend')) report.backend = text;
       remember(report.consoleTail, `${params.type}: ${text}`, 40);
       if (params.type === 'error' || params.type === 'assert') remember(report.consoleErrors, text);
@@ -512,6 +612,7 @@ function onEvent(method, params, session) {
     }
     case 'Log.entryAdded': {
       const e = params.entry || {};
+      if (DOWNLOAD_BLOCKED.test(e.text || '')) remember(report.downloads, { event: 'log', text: (e.text || '').slice(0, 300) });
       if (e.level === 'error') remember(report.consoleErrors, `[${e.source}] ${e.text}${e.url ? ' ' + e.url : ''}`.slice(0, 500));
       break;
     }
@@ -864,6 +965,66 @@ async function ehpScenario() {
   const dark = await waitBar((hex) => luma(hex) < 0x80);
   step('evora:init : thème sombre au rendu', dark.ok, `barre #${dark.got}`);
 
+  // 3 bis. Catalogue des commandes (command.catalog) : reçu après l'init, liste blanche hors espace de
+  //    la coquille, commandes attendues présentes, drapeau destructive, empreinte.
+  const catalog = await waitParent('__ehp.catalog', 20_000);
+  if (step('catalogue : evora:commands reçu après evora:init', !!catalog)) {
+    const ids = (catalog.commands || []).map((c) => c.id);
+    const shell = ids.filter((id) => (id.startsWith('file.') && !FILE_ADMITTED.includes(id)) || /^(app|help|prefs)\./.test(id) || id.startsWith('edit.preferences'));
+    step('catalogue : aucune commande de la coquille (liste blanche)', shell.length === 0, J(shell));
+    const missing = CATALOG_EXPECTED.filter((id) => !ids.includes(id));
+    step('catalogue : commandes attendues présentes', missing.length === 0 && ids.length >= 50, `${ids.length} commandes, absentes ${J(missing)}`);
+    const reset = (catalog.commands || []).find((c) => c.id === 'window.workspace.reset');
+    const undo = (catalog.commands || []).find((c) => c.id === 'edit.undo');
+    step('catalogue : destructive marquée', !!reset && reset.destructive === true && !!undo && undo.destructive === false, J({ reset, undo }));
+    step('catalogue : langue fr', catalog.lang === 'fr', J(catalog.lang));
+    if (SMOKE_COMMANDS_OUT && !SMOKE_SABOTAGE) {
+      await writeFile(SMOKE_COMMANDS_OUT, `${JSON.stringify({ app: EXPECTED_APP, version: ready.payload.version, ...catalog }, null, 1)}\n`);
+    }
+  }
+  const cmd = async (command, extra = {}) => waitAck(await parentEval(`__ehp.post('evora:command', ${J({ command, params: {}, ...extra })})`));
+  const diag = await cmd('diag.stats');
+  step('commande diag.stats → résultat', ackIs(diag, true) && !!diag.payload.result && typeof diag.payload.result.version === 'string', J(diag));
+  for (const [command, why] of [['file.save', "espace de la coquille"], ['app.quit', "espace de la coquille"], ['evora.inconnue', 'inconnue']]) {
+    const a = await cmd(command);
+    step(`commande ${command} (${why}) → capability`, ackIs(a, false, 'capability'), J(a));
+  }
+  const noConfirm = await cmd('window.workspace.reset');
+  step('commande destructive sans confirmed → forbidden', ackIs(noConfirm, false, 'forbidden'), J(noConfirm));
+  const confirmed = await cmd('window.workspace.reset', { confirmed: true });
+  step('commande destructive avec confirmed → exécutée', ackIs(confirmed, true), J(confirmed));
+  const withPath = await waitAck(await parentEval(`__ehp.post('evora:command', ${J({ command: 'select.all', params: { path: '/opfs/evora/x' } })})`));
+  step('commande avec un paramètre de chemin → invalid_content', ackIs(withPath, false, 'invalid_content'), J(withPath));
+
+  // 3 ter. Sortie au clavier (ui.focus-out) : F6 sans modificateur → evora:focus-out, une fois ; avec
+  //    Maj, rien.
+  const f6 = await engineEval("(() => { const e = new KeyboardEvent('keydown', { key: 'F6', bubbles: true, cancelable: true }); window.dispatchEvent(e); window.dispatchEvent(new KeyboardEvent('keyup', { key: 'F6', bubbles: true, cancelable: true })); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F6', shiftKey: true, bubbles: true, cancelable: true })); return e.defaultPrevented; })()").catch((e) => String(e));
+  const out = await waitParent("__ehp.all('evora:focus-out').length >= 1");
+  await sleep(500);
+  const outs = await parentEval("__ehp.all('evora:focus-out').length");
+  step('F6 → evora:focus-out (une fois, rien avec Maj), touche retenue', !!out && outs === 1 && f6 === true, J({ outs, f6 }));
+
+  // 3 quater. Police injectée (font.inject) : une police du site → acceptée ; des octets corrompus →
+  //    invalid_content.
+  const fontId = await parentEval("__ehp.font().then((b) => b ? __ehp.post('evora:font', { family: 'Noto Sans Georgian', format: 'ttf', bytes: b }, { transfer: [b] }) : null)", true).catch(() => null);
+  const fontAck = fontId ? await waitAck(fontId) : null;
+  step('evora:font (police valide) → acceptée', ackIs(fontAck, true), J({ fontId, fontAck }));
+  const badFont = await waitAck(await parentEval("(() => { const b = new Uint8Array(512).fill(7).buffer; return __ehp.post('evora:font', { family: 'Evora Corrompue', format: 'ttf', bytes: b }, { transfer: [b] }); })()"));
+  step('evora:font (octets corrompus) → invalid_content', ackIs(badFont, false, 'invalid_content'), J(badFont));
+
+  // 3 quinquies. Livre de couleurs (.acb, SPR-08) : jamais lu hébergé, quel que soit le chemin
+  //    (ici window.vectorcraft.openFile, comme un dépôt).
+  const books = await engineEval(`(async () => {
+    const units = (s) => { const b = [s.length >>> 24, (s.length >>> 16) & 255, (s.length >>> 8) & 255, s.length & 255]; for (const c of s) { const u = c.charCodeAt(0); b.push(u >> 8, u & 255); } return b; };
+    const b = [0x38, 0x42, 0x43, 0x42, 0, 1, 0x0b, 0xb8, ...units('Evora Temoin'), ...units(''), ...units(''), ...units(''), 0, 1, 0, 7, 0, 0, 0, 0, ...units('Rouge'), ...[...'TST001'].map((c) => c.charCodeAt(0)), 228, 0, 43];
+    window.vectorcraft.openFile('evora-temoin.acb', new Uint8Array(b));
+    await new Promise((r) => setTimeout(r, 2000));
+    const l = await window.vectorcraft.execute('swatch.library.list', {}).catch((e) => ({ error: String(e) }));
+    return JSON.stringify(l);
+  })()`, true).then(JSON.parse).catch((e) => ({ error: String(e) }));
+  const loaded = Array.isArray(books.libraries) ? books.libraries.filter((l) => /Evora Temoin/.test(l.name || '')) : null;
+  step('livre de couleurs (.acb) refusé hébergé (SPR-08)', Array.isArray(loaded) && loaded.length === 0, J(loaded || books));
+
   // 4. Messages à ignorer : origine C non admise, autre fenêtre de l'origine B, version 2, requête
   //    portant re, raison hors schéma, champ de charge utile en trop, type inconnu. Un témoin de la
   //    page parente doit, lui, recevoir sa réponse (« clean » : aucun document ouvert).
@@ -921,8 +1082,19 @@ async function ehpScenario() {
   step('evora:request-save → evora:save conforme',
     !!save && save.problems.length === 0 && sp.docRef === docRef && sp.name === savedName && sp.saveAs === false && sp.bytes && sp.bytes.arrayBuffer >= 1,
     J(save));
-  const cleaned = await waitParent(`(() => { const d = __ehp.all('evora:dirty'); const s = d.findIndex((m) => m.payload.dirty === true); return s >= 0 && d.slice(s + 1).some((m) => m.payload.dirty === false); })()`);
-  step('evora:dirty false après evora:save', cleaned);
+  // SPR-01 (doc.saved-ack) : un hôte muet, puis un refus, ne rendent jamais le document « enregistré ».
+  const cleanedExpr = `(() => { const d = __ehp.all('evora:dirty'); const s = d.findIndex((m) => m.payload.dirty === true); return s >= 0 && d.slice(s + 1).some((m) => m.payload.dirty === false); })()`;
+  await sleep(3000);
+  step('hôte muet : le document reste modifié (aucun evora:dirty false)', !(await parentEval(cleanedExpr)));
+  if (save) await parentEval(`__ehp.post('evora:saved', { ok: false, error: 'conflict' }, { re: ${J(save.id)} })`);
+  await sleep(2000);
+  step('evora:saved ok:false : le document reste modifié', !(await parentEval(cleanedExpr)));
+  const rs2Id = await parentEval(`__ehp.post('evora:request-save', { reason: 'autosave', docRef: ${J(docRef)} })`);
+  const save2 = await waitParent(`__ehp.find('evora:save', ${J(rs2Id)})`);
+  step('evora:request-save après un refus → nouvel evora:save', !!save2 && save2.problems.length === 0, J(save2));
+  if (save2) await parentEval(`__ehp.post('evora:saved', { ok: true, version: 2 }, { re: ${J(save2.id)} })`);
+  const cleaned = await waitParent(cleanedExpr);
+  step('evora:dirty false après evora:saved ok:true', cleaned);
   const again = await waitAck(await parentEval(`__ehp.post('evora:request-save', { reason: 'autosave', docRef: ${J(docRef)} })`));
   step('evora:request-save sans modification → clean', ackIs(again, true, 'clean'), J(again));
   const unknown = await waitAck(await parentEval(`__ehp.post('evora:request-save', { reason: 'user', docRef: __ehp.ulid() })`));
@@ -935,6 +1107,35 @@ async function ehpScenario() {
     step('réouverture du document enregistré', ackIs(await waitAck(reopenId), true));
     step('evora:dirty false après réouverture', await waitParent(`__ehp.all('evora:dirty').slice(${before}).some((m) => m.payload.dirty === false)`));
   }
+
+  // 9 bis. Export vers l'hôte (SPR-02) : un PNG part en evora:export, jamais en téléchargement.
+  const downloadsBefore = report.downloads.length;
+  const exported = await engineEval("Promise.race([window.vectorcraft.request('app.export', { format: 'png', path: 'evora-export.png', wait: true }).then(() => 'ok', (e) => 'erreur : ' + e.message), new Promise((r) => setTimeout(() => r('délai'), 15000))])", true).catch((e) => String(e));
+  const exp = await waitParent("__ehp.all('evora:export').find((m) => m.payload.name === 'evora-export.png')");
+  const ep = exp ? exp.payload : {};
+  step('export PNG → evora:export conforme', exported === 'ok' && !!exp && exp.problems.length === 0 && ep.mime === 'image/png' && ep.docRef === docRef && ep.bytes && ep.bytes.arrayBuffer >= 1, J({ exported, exp }));
+  if (exp) await parentEval(`__ehp.post('evora:ack', { ok: true }, { re: ${J(exp.id)} })`);
+  await sleep(1000);
+  step('export : zéro téléchargement (protocole DevTools)', report.downloads.length === downloadsBefore, J(report.downloads.slice(downloadsBefore)));
+
+  // 9 ter. Sélecteur de l'hôte (SPR-03) : Fichier › Placer et Fichier › Ouvrir demandent evora:pick,
+  //    jamais le disque (aucun input[type=file]).
+  const run = (command) => engineEval(`Promise.race([window.vectorcraft.execute(${J(command)}, {}).then(() => 'ok', (e) => 'erreur : ' + e.message), new Promise((r) => setTimeout(() => r('délai'), 10000))])`, true).catch((e) => String(e));
+  const placeRun = await run('file.place');
+  const placePick = await waitParent("__ehp.all('evora:pick').find((m) => m.payload.purpose === 'import')");
+  const pp = placePick ? placePick.payload : {};
+  step('Placer → evora:pick import conforme', !!placePick && placePick.problems.length === 0 && pp.multiple === true && Array.isArray(pp.accept) && pp.accept.includes('.svg') && pp.accept.includes('.png'), J({ placeRun, placePick }));
+  const inputs = await engineEval("document.querySelectorAll('input[type=file]').length").catch((e) => String(e));
+  step('Placer : aucun input[type=file] dans le moteur', inputs === 0, J(inputs));
+  if (placePick) {
+    await parentEval(`(() => { const b = __ehp.text(${J(SMOKE_SVG)}); __ehp.post('evora:file', { path: '/evora/01JZZZZZZZZZZZZZZZZZZZZZZZ/evora-place.svg', name: 'evora-place.svg', bytes: b }, { re: ${J(placePick.id)}, transfer: [b] }); return __ehp.post('evora:ack', { ok: true }, { re: ${J(placePick.id)} }); })()`);
+  }
+  await sleep(1000);
+  const openRun = await run('file.open');
+  const openPick = await waitParent("__ehp.all('evora:pick').find((m) => m.payload.purpose === 'open')");
+  const op = openPick ? openPick.payload : {};
+  step('Ouvrir → evora:pick open conforme (le pick précédent est clos)', !!openPick && openPick.problems.length === 0 && op.multiple === false && J(op.accept) === J(['.vectorcraft']), J({ openRun, openPick }));
+  if (openPick) await parentEval(`__ehp.post('evora:ack', { ok: false, code: 'cancelled' }, { re: ${J(openPick.id)} })`);
 
   // 10. Thème et langue à chaud.
   const themeAck = await waitAck(await parentEval(`__ehp.post('evora:theme', { theme: 'light', accent: '#4F46E5' })`));
@@ -1022,12 +1223,15 @@ async function main() {
     hostConfig = { parentOrigins: [SMOKE_SABOTAGE === 'origin' ? 'http://127.0.0.1:1' : report.originB] };
   }
   policy = await cspPolicy(report.originB);
+  if (SMOKE_EHP) fontFile = await findFont(path.join(SITE, 'fonts'));
   report.cspReportOnly.policy = policy;
   if (report.originA === report.originB) report.reasons.push('origines A et B identiques');
 
   await startChrome();
   const version = await send('Browser.getVersion');
   report.chrome = version.product;
+  // Toute tentative de téléchargement est refusée et relevée (SPR-02 : zéro téléchargement).
+  await send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => {});
   const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
   const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
   await enable(sessionId, false);

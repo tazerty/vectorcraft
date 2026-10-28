@@ -462,9 +462,11 @@ jobs:
           smoke base SMOKE_LANG=zh-Hans SMOKE_EXPECT_LANG=zh-hans SMOKE_HOST=evora SMOKE_SEED=1 \
             SMOKE_THEME=light SMOKE_EXPECT_BAR=e6e9ee || gate=1
           # « pont-ehp » : origine B admise par evora-host.json (servi par le banc comme l'écrirait le
-          # provisionnement) ; déroulé complet du pont EHP v1 et de la purge (smoke.mjs, ehpScenario).
+          # provisionnement) ; déroulé complet du pont EHP v1 et de la purge (smoke.mjs, ehpScenario),
+          # avec les patchs SPR de la montée v0.17.0 (accusé, exports, sélecteur, polices, F6,
+          # catalogue des commandes, livres de couleurs). Le catalogue reçu devient commands.json.
           smoke pont-ehp SMOKE_EHP=1 SMOKE_LANG=en SMOKE_HOST=evora SMOKE_SEED=1 \
-            SMOKE_THEME=light SMOKE_EXPECT_BAR=e6e9ee || gate=1
+            SMOKE_THEME=light SMOKE_EXPECT_BAR=e6e9ee SMOKE_COMMANDS_OUT="$RUNNER_TEMP/evora-commands.json" || gate=1
           # « pont-ehp-neuf » : même déroulé, le document s'ouvre vierge, sans octets
           # (evora:open {new: true} : document qui n'a pas encore de fichier Drive, HOST-PROTOCOL §7.1).
           smoke pont-ehp-neuf SMOKE_EHP=1 SMOKE_EHP_NEW=1 SMOKE_LANG=en SMOKE_HOST=evora SMOKE_SEED=1 \
@@ -520,8 +522,13 @@ jobs:
           set -euo pipefail
           [ -s "$PKG/csp-hashes.txt" ] || { echo "::error::csp-hashes.txt absent"; exit 1; }
           cp "$PKG/csp-hashes.txt" "$OUT/csp-hashes.txt"
+          # commands.json (command.catalog) : le catalogue reçu par le banc pont-ehp, que le
+          # provisionnement d'Evora copie dans engines.json avec son empreinte.
+          [ -s "$RUNNER_TEMP/evora-commands.json" ] || { echo "::error::commands.json absent : aucun catalogue reçu par le banc pont-ehp"; exit 1; }
+          cp "$RUNNER_TEMP/evora-commands.json" "$OUT/commands.json"
+          echo "commands.json : $(python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d["count"], "commandes, empreinte", d["hash"])' "$OUT/commands.json")"
           (cd "$(dirname "$PKG")" && zip -qrX9 "$OUT/$NAME.zip" "$NAME")
-          (cd "$OUT" && sha256sum "$NAME.zip" csp-hashes.txt > SHA256SUMS)
+          (cd "$OUT" && sha256sum "$NAME.zip" csp-hashes.txt commands.json > SHA256SUMS)
           {
             echo "### Artefact"
             echo
@@ -549,4 +556,5 @@ jobs:
             ${{ steps.pkg.outputs.out }}/${{ steps.pkg.outputs.name }}.zip
             ${{ steps.pkg.outputs.out }}/SHA256SUMS
             ${{ steps.pkg.outputs.out }}/csp-hashes.txt
+            ${{ steps.pkg.outputs.out }}/commands.json
           if-no-files-found: error
