@@ -11,10 +11,25 @@
 //! origin as `targetOrigin`, never `*`, with fresh ULIDs.
 //!
 //! Handled: `evora:init`, `evora:open` (bytes, or `new: true`: a blank document that has no Drive
-//! file yet, §7.1), `evora:request-save`, `evora:saved` (checked only:
-//! without `doc.saved-ack` the engine counts a document as saved once handed over and the host keeps
-//! its own save state, §6.3), `evora:lang`, `evora:theme`, `evora:purge`. Sent: `evora:ready`,
-//! `evora:failed`, `evora:ack`, `evora:dirty`, `evora:save`.
+//! file yet, §7.1), `evora:request-save`, `evora:saved`, `evora:lang`, `evora:theme`, `evora:purge`,
+//! `evora:font`, `evora:command`, `evora:file` and `evora:ack` (answers to this engine's `evora:pick`
+//! and `evora:export`). Sent: `evora:ready`, `evora:failed`, `evora:ack`, `evora:dirty`,
+//! `evora:save`, `evora:export`, `evora:pick`, `evora:focus-out`, `evora:commands`.
+//!
+//! Patches SPR (lot SIN-FK of Evora, rise to v0.17.0):
+//! - SPR-01 `doc.saved-ack`: with it effective, a document counts as saved only once the host
+//!   answers `evora:saved {ok: true}` to the `evora:save` that carried it, and only as it was then
+//!   (edits made since keep it modified); a silent host never makes it saved, `ok: false` leaves it
+//!   modified. Without it, as before: saved once handed over (§6.3).
+//! - SPR-02 `export.drive`: hosted, no file ever goes to a download: the document opened by the host
+//!   goes as `evora:save`, every other file (export, Save for Web, a copy) as `evora:export`;
+//!   without the capability (or over `maxExportBytes`) the write is refused with a message.
+//! - SPR-03 `pick.drive`: hosted, File › Open and File › Place ask the host's picker (`evora:pick`,
+//!   `open` and `import`), never the disk; the files arrive as `evora:file`.
+//! - SPR-04 `font.inject`: `evora:font` adds a TrueType or OpenType face to the document fonts.
+//! - SPR-05 `storage.memory`: declared, what hosted mode already does (Data Recovery in memory).
+//! - `ui.focus-out`: F6 hands the keyboard back to the host (`host_focus`).
+//! - `command` and `command.catalog`: Evora runs the engine's commands (`host_commands`).
 //!
 //! Storage (patch E5): hosted, Data Recovery keeps its copies in memory ([`HostedStore`]) and the
 //! engine writes nothing to the browser. What earlier sessions left under `vectorcraft-recovery/`
@@ -39,14 +54,32 @@ use crate::web::HostedStore;
 const APP: &str = "sinopia-pro";
 const EHP: &str = "1.0";
 /// What this engine honours (§9.1), each one exercised by the CI smoke test (scenario
-/// `pont-ehp`). Not declared: `storage.ns` and `storage.memory` (hosted, nothing is kept in the
-/// browser to prefix, and no Data Recovery copy is written during the smoke test),
-/// `doc.saved-ack`, `export.drive`, `pick.drive`, `font.inject`, `doc.multi`.
-const CAPABILITIES: [&str; 7] = ["doc.open", "doc.save", "doc.dirty", "doc.request-save", "storage.purge", "live.lang", "live.theme"];
+/// `pont-ehp`). Not declared: `storage.ns` (hosted, nothing is kept in the browser to prefix),
+/// `doc.multi` (one document at a time), `media.need` and `media.ranges` (a `.vectorcraft` carries
+/// its pictures), `author`.
+const CAPABILITIES: [&str; 15] = [
+    "doc.open",
+    "doc.save",
+    "doc.saved-ack",
+    "doc.dirty",
+    "doc.request-save",
+    "export.drive",
+    "pick.drive",
+    "command",
+    "storage.memory",
+    "storage.purge",
+    "live.lang",
+    "live.theme",
+    "font.inject",
+    "ui.focus-out",
+    "command.catalog",
+];
 /// The admitted parent origins, beside `index.html` (§2.3).
 const CONFIG: &str = "evora-host.json";
 const LANGS: [&str; 14] = ["ar", "de", "en", "es", "fr", "hi", "id", "it", "ja", "ko", "pt", "ru", "tr", "zh-Hans"];
-const CAPABILITY_NAMES: [&str; 18] = [
+/// Every capability name the host may list in `evora:init` (the host's ceiling, Evora's
+/// `host-schema.js`): an unknown name makes the whole init ignored.
+const CAPABILITY_NAMES: [&str; 23] = [
     "doc.open",
     "doc.save",
     "doc.saved-ack",
@@ -65,6 +98,11 @@ const CAPABILITY_NAMES: [&str; 18] = [
     "live.theme",
     "font.inject",
     "author",
+    "ui.focus-out",
+    "ui.activity",
+    "drop.files",
+    "prefs.sync",
+    "command.catalog",
 ];
 const SAVE_REASONS: [&str; 5] = ["autosave", "visibility", "close", "logout", "user"];
 const ACK_CODES: [&str; 16] = [
@@ -89,6 +127,21 @@ const ACK_CODES: [&str; 16] = [
 const NATIVE_FORMAT: &str = "vectorcraft";
 /// `evora:save` messages still waiting for their `evora:saved`, at most.
 const MAX_PENDING_SAVES: usize = 64;
+/// `evora:export` messages still waiting for their `evora:ack`, at most.
+const MAX_PENDING_EXPORTS: usize = 64;
+/// Font family names in `evora:font`, at most (characters), as `name` of §4.2.
+const MAX_FONT_FAMILY: usize = 255;
+/// The write refused before the host's `evora:init` (or with no admitted host): hosted, nothing goes
+/// to a download.
+const NOT_HOSTED: &str = "Evora isn't connected: nothing is saved or downloaded here";
+/// File › Place through the host's picker: the file types offered, in this order, those of them
+/// File › Place reads ([`fileio::PLACE_EXTS`]).
+const PLACE_ACCEPT: [&str; 12] = ["svg", "png", "jpg", "jpeg", "gif", "webp", "tif", "tiff", "bmp", "pdf", "eps", "vectorcraft"];
+/// What the host's picker may offer for File › Open: this engine's own documents.
+const OPEN_ACCEPT: [&str; 1] = [".vectorcraft"];
+/// File › Place through the host's picker: at most this many file types in `accept` (the host
+/// refuses longer lists, `maxAcceptItems`).
+const MAX_ACCEPT: usize = 16;
 
 /// What the host asked that needs the app, applied at the start of the next frame
 /// ([`Bridge::before_frame`]).
@@ -101,10 +154,33 @@ enum HostEvent {
     /// `evora:open`: the document's bytes, or `None` for a blank one (`new: true`).
     Open { id: String, doc_ref: String, name: String, bytes: Option<Vec<u8>> },
     RequestSave { id: String, doc_ref: Option<String> },
-    /// A save handed to the host's `download` couldn't go: the document counts as modified again.
-    SaveRefused { uid: u64 },
     /// `evora:purge`: the storage is already empty; Data Recovery stops for good.
     Purged,
+    /// SPR-01: the host's answer to the `evora:save` `id` (`doc.saved-ack` effective).
+    Saved { id: String, ok: bool },
+    /// SPR-04: `evora:font`, the family the host names and the face's bytes.
+    Font { id: String, family: String, bytes: Vec<u8> },
+    /// `evora:command`: run `command` (a destructive one only `confirmed`).
+    Command { id: String, command: String, confirmed: bool },
+    /// SPR-03: a file the host's picker gave for File › Place.
+    Placed { name: String, bytes: Vec<u8> },
+    /// A message for the status bar (the host refused an export, the picker is unavailable…).
+    Status(String),
+}
+
+/// SPR-01: an `evora:save` waiting for its `evora:saved` (`doc.saved-ack` effective).
+struct PendingSave {
+    id: String,
+    uid: u64,
+    /// `doc.saved-ack` was effective when it went: the answer decides the saved state.
+    acked: bool,
+    /// A save the host asked for (`evora:request-save`): the job that records it as saved once the
+    /// host takes it ([`fileio::SaveJob::complete`]).
+    job: Option<fileio::SaveJob>,
+    /// A save the app made itself (File › Save), which the app recorded as saved at once: the
+    /// document as handed over, taken back from "saved" by [`Bridge::after_frame`] until the host
+    /// answers (`None` until then).
+    snapshot: Option<Arc<vectorcraft_engine::doc::Document>>,
 }
 
 /// The document the host opened (one at a time: no `doc.multi`).
@@ -132,8 +208,17 @@ struct Inner {
     /// The effective capabilities: what the host offers and this engine declares (§9).
     caps: Vec<String>,
     max_document: f64,
+    /// `limits.maxExportBytes` of `evora:init` (SPR-02).
+    max_export: f64,
     events: Vec<HostEvent>,
-    pending_saves: Vec<String>,
+    pending_saves: Vec<PendingSave>,
+    /// SPR-02: `evora:export` messages waiting for their `evora:ack`: (id, file name).
+    pending_exports: Vec<(String, String)>,
+    /// SPR-03: the `evora:pick` in flight: (id, purpose).
+    pick: Option<(String, &'static str)>,
+    /// `command.catalog`: `evora:commands` goes at the end of the next frame (after the init, and
+    /// after each change of the interface language).
+    catalog_due: bool,
     hosted: Option<Hosted>,
     last_dirty: Option<bool>,
     /// The language code last written to the page's `lang` attribute.
@@ -212,6 +297,8 @@ impl Bridge {
             match event {
                 HostEvent::Lang { id, tag } => {
                     set_language(app, tag.as_deref());
+                    // The catalogue's labels follow the language (`command.catalog`).
+                    self.inner.borrow_mut().catalog_due = true;
                     if let Some(id) = id {
                         self.ack(&id, true, None);
                     }
@@ -226,21 +313,93 @@ impl Bridge {
                 }
                 HostEvent::Open { id, doc_ref, name, bytes } => self.open(app, &id, doc_ref, &name, bytes.as_deref()),
                 HostEvent::RequestSave { id, doc_ref } => self.request_save(app, &id, doc_ref.as_deref()),
-                HostEvent::SaveRefused { uid } => {
-                    if let Some(st) = app.session.document_mut(uid) {
-                        // A saved state that is a copy of the document: modified, as before the save.
-                        let unsaved = Arc::new((*st.doc).clone());
-                        st.mark_saved_as(&unsaved);
-                    }
-                    app.status("Not saved: Evora didn't take the document");
-                }
                 HostEvent::Purged => {
                     recovery::forget_all(&mut app.session);
                     app.session.prefs.autosave_recovery = false;
                 }
+                HostEvent::Saved { id, ok } => self.settle_save(app, &id, ok),
+                HostEvent::Font { id, family, bytes } => {
+                    // SPR-04: the face joins the document fonts (the font menus list it). None
+                    // added: a face of that family already there is fine, else it isn't a font.
+                    let db = vectorcraft_text::FontDb::global();
+                    let added = db.add_font(bytes);
+                    if added > 0 || db.families().iter().any(|f| f.eq_ignore_ascii_case(&family)) {
+                        app.canvas.key = None;
+                        self.ack(&id, true, None);
+                    } else {
+                        self.ack(&id, false, Some("invalid_content"));
+                    }
+                }
+                HostEvent::Command { id, command, confirmed } => {
+                    let catalog = self.has("command.catalog");
+                    match crate::host_commands::run(app, &command, confirmed, catalog) {
+                        Ok(Some(result)) => self.ack_result(&id, &result),
+                        Ok(None) => self.ack(&id, true, None),
+                        Err(code) => self.ack(&id, false, Some(code)),
+                    }
+                }
+                HostEvent::Placed { name, bytes } => {
+                    if let Some(inbox) = &app.services.place_inbox {
+                        inbox.lock().unwrap_or_else(|e| e.into_inner()).push(vectorcraft_ui_egui::place::PlaceArrival { name, bytes, drop: None });
+                    }
+                }
+                HostEvent::Status(text) => app.status(text),
             }
         }
         self.note_active(app);
+    }
+
+    /// Is capability `cap` effective (declared by this engine and offered by the host's init)?
+    pub fn has(&self, cap: &str) -> bool {
+        let inner = self.inner.borrow();
+        inner.initialized && inner.caps.iter().any(|c| c == cap)
+    }
+
+    /// SPR-01: the host answered the `evora:save` `id` (`doc.saved-ack` effective): saved as it was
+    /// handed over when `ok` (edits made since keep the document modified), else left modified.
+    fn settle_save(&self, app: &mut VectorcraftApp, id: &str, ok: bool) {
+        let pending = {
+            let mut inner = self.inner.borrow_mut();
+            let Some(i) = inner.pending_saves.iter().position(|p| p.id == id) else { return };
+            inner.pending_saves.remove(i)
+        };
+        let uid = pending.uid;
+        if let Some(job) = pending.job {
+            if ok {
+                job.complete(&mut app.session, uid);
+            }
+        } else if let Some(st) = app.session.document_mut(uid) {
+            match (ok, pending.snapshot) {
+                (true, Some(snapshot)) => st.mark_saved_as(&snapshot),
+                (true, None) => {}
+                // Not taken: modified, whatever the app recorded.
+                (false, _) => {
+                    let unsaved = Arc::new((*st.doc).clone());
+                    st.mark_saved_as(&unsaved);
+                }
+            }
+        }
+        if !ok {
+            app.status("Not saved: Evora didn't take the document");
+        }
+    }
+
+    /// SPR-01: a save the app made itself (File › Save) counts as saved only once the host takes it:
+    /// the document as handed over is kept, and the document is modified again until then.
+    fn take_back_saves(&self, app: &mut VectorcraftApp) {
+        let waiting: Vec<(usize, u64)> = {
+            let inner = self.inner.borrow();
+            inner.pending_saves.iter().enumerate().filter(|(_, p)| p.acked && p.job.is_none() && p.snapshot.is_none()).map(|(i, p)| (i, p.uid)).collect()
+        };
+        for (i, uid) in waiting {
+            let Some(st) = app.session.document_mut(uid) else { continue };
+            let snapshot = st.doc.clone();
+            let unsaved = Arc::new((*st.doc).clone());
+            st.mark_saved_as(&unsaved);
+            if let Some(p) = self.inner.borrow_mut().pending_saves.get_mut(i) {
+                p.snapshot = Some(snapshot);
+            }
+        }
     }
 
     /// The active document, for a save the app runs next ([`Bridge::take_download`]).
@@ -251,8 +410,10 @@ impl Bridge {
     /// After the app's logic or layout: the page's `lang` follows the language the UI is drawn in,
     /// and `evora:dirty` goes when the hosted document's modified state changed (and once after it
     /// opened).
-    pub fn after_frame(&self, app: &VectorcraftApp) {
+    pub fn after_frame(&self, app: &mut VectorcraftApp) {
         self.note_lang();
+        self.take_back_saves(app);
+        self.send_catalog(app);
         let (uid, doc_ref) = {
             let inner = self.inner.borrow();
             match &inner.hosted {
@@ -294,24 +455,119 @@ impl Bridge {
         }
     }
 
-    /// The app's `download` service while hosted: the document the host opened, saved by the app
-    /// (File › Save, its shortcut) as itself, goes to the host (`evora:save`) and never to a
-    /// download → whether it was taken (else the caller downloads, as upstream does).
-    pub fn take_download(&self, name: &str, bytes: &[u8]) -> bool {
-        let (uid, doc_ref, max) = {
+    /// The app's `download` service while hosted (patches E4, SPR-01, SPR-02): nothing ever goes to
+    /// a download. The document the host opened, saved by the app (File › Save, its shortcut) as
+    /// itself, goes to the host as `evora:save`; any other file (an export, Save for Web, a copy
+    /// under another name) as `evora:export` when `export.drive` is effective. Otherwise, or over
+    /// the host's limits, the write is refused (`Err`): the app says so and a save leaves the
+    /// document modified.
+    pub fn take_download(&self, name: &str, bytes: &[u8]) -> Result<(), String> {
+        let (initialized, save, doc_ref, max_export) = {
             let inner = self.inner.borrow();
-            let Some(h) = &inner.hosted else { return false };
-            if !inner.initialized || !inner.caps.iter().any(|c| c == "doc.save") || inner.active != Some(h.uid) || h.name != name {
-                return false;
-            }
-            (h.uid, h.doc_ref.clone(), inner.max_document)
+            let save = inner
+                .hosted
+                .as_ref()
+                .filter(|h| inner.caps.iter().any(|c| c == "doc.save") && inner.active == Some(h.uid) && h.name == name)
+                .map(|h| (h.uid, h.doc_ref.clone(), inner.max_document));
+            (inner.initialized, save, inner.hosted.as_ref().map(|h| h.doc_ref.clone()), inner.max_export)
         };
-        if bytes.is_empty() || bytes.len() as f64 > max || !self.post_save(&doc_ref, name, bytes, None) {
-            log::error!("vectorcraft-web: {name} couldn't go to Evora ({} bytes)", bytes.len());
-            self.inner.borrow_mut().events.push(HostEvent::SaveRefused { uid });
-            self.wake();
+        if !initialized {
+            return Err(NOT_HOSTED.into());
         }
-        true
+        if let Some((uid, doc_ref, max)) = save {
+            if bytes.is_empty() || bytes.len() as f64 > max {
+                return Err(format!("{name} is too large for Evora ({} bytes)", bytes.len()));
+            }
+            let Some(id) = self.post_save(&doc_ref, name, bytes, None) else {
+                return Err("Not saved: Evora didn't take the document".into());
+            };
+            let acked = self.has("doc.saved-ack");
+            self.pend_save(PendingSave { id, uid, acked, job: None, snapshot: None });
+            self.wake();
+            return Ok(());
+        }
+        if !self.has("export.drive") {
+            return Err("Exports go to Evora's Drive, which doesn't take them here".into());
+        }
+        if !is_name(name) || bytes.is_empty() {
+            return Err(format!("{name} can't go to Evora"));
+        }
+        if bytes.len() as f64 > max_export {
+            return Err(format!("{name} is too large for Evora ({} bytes)", bytes.len()));
+        }
+        let mime = fileio::format_for_name(name).map_or("application/octet-stream", |f| f.mime);
+        match self.post_export(doc_ref.as_deref(), name, mime, bytes) {
+            Some(id) => {
+                let mut inner = self.inner.borrow_mut();
+                if inner.pending_exports.len() >= MAX_PENDING_EXPORTS {
+                    inner.pending_exports.remove(0);
+                }
+                inner.pending_exports.push((id, name.to_string()));
+                Ok(())
+            }
+            None => Err(format!("{name} couldn't go to Evora")),
+        }
+    }
+
+    fn pend_save(&self, pending: PendingSave) {
+        let mut inner = self.inner.borrow_mut();
+        if inner.pending_saves.len() >= MAX_PENDING_SAVES {
+            inner.pending_saves.remove(0);
+        }
+        inner.pending_saves.push(pending);
+    }
+
+    /// SPR-03: File › Open (`open`) and File › Place (`import`) while hosted ask the host's picker,
+    /// never the disk. Without `pick.drive`, or with a pick in flight, the status bar says so.
+    pub fn pick(&self, purpose: &'static str) {
+        if !self.has("pick.drive") {
+            self.status("Files come from Evora's Drive, which isn't available here");
+            return;
+        }
+        if self.inner.borrow().pick.is_some() {
+            self.status("Evora's picker is already open");
+            return;
+        }
+        let accept = js_sys::Array::new();
+        if purpose == "open" {
+            for a in OPEN_ACCEPT {
+                accept.push(&JsValue::from_str(a));
+            }
+        } else {
+            for ext in PLACE_ACCEPT.iter().filter(|e| fileio::PLACE_EXTS.contains(*e)).take(MAX_ACCEPT) {
+                accept.push(&JsValue::from_str(&format!(".{ext}")));
+            }
+        }
+        let Some(payload) = object(&[("purpose", purpose.into()), ("accept", accept.into()), ("multiple", (purpose == "import").into())]) else {
+            return;
+        };
+        if let Some(id) = self.send("evora:pick", None, &payload, None) {
+            self.inner.borrow_mut().pick = Some((id, purpose));
+        }
+    }
+
+    /// A message for the status bar, shown at the next frame.
+    fn status(&self, text: &str) {
+        self.inner.borrow_mut().events.push(HostEvent::Status(text.to_string()));
+        self.wake();
+    }
+
+    /// `ui.focus-out` (`host_focus`): the user hands the keyboard back to the host.
+    pub fn focus_out(&self) {
+        if let Some(payload) = object(&[]) {
+            self.send("evora:focus-out", None, &payload, None);
+        }
+    }
+
+    /// `command.catalog`: `evora:commands` when due (after the init, after a change of language).
+    fn send_catalog(&self, app: &VectorcraftApp) {
+        if !self.inner.borrow().catalog_due || !self.has("command.catalog") {
+            return;
+        }
+        self.inner.borrow_mut().catalog_due = false;
+        let catalog = crate::host_commands::catalog(app);
+        let Some(payload) = js_sys::JSON::parse(&catalog.to_string()).ok().and_then(|v| v.dyn_into::<js_sys::Object>().ok()) else { return };
+        self.send("evora:commands", None, &payload, None);
     }
 
     fn post_ready(&self) {
@@ -337,21 +593,37 @@ impl Bridge {
         }
     }
 
-    /// `evora:save {docRef, name, saveAs: false, bytes}` (`re`: the request it answers).
-    fn post_save(&self, doc_ref: &str, name: &str, bytes: &[u8], re: Option<&str>) -> bool {
+    /// `evora:save {docRef, name, saveAs: false, bytes}` (`re`: the request it answers) → its id.
+    fn post_save(&self, doc_ref: &str, name: &str, bytes: &[u8], re: Option<&str>) -> Option<String> {
         let buffer = js_sys::Uint8Array::from(bytes).buffer();
-        let Some(payload) =
-            object(&[("docRef", doc_ref.into()), ("name", name.into()), ("saveAs", false.into()), ("bytes", buffer.clone().into())])
-        else {
-            return false;
-        };
-        let Some(id) = self.send("evora:save", re, &payload, Some(&buffer)) else { return false };
-        let mut inner = self.inner.borrow_mut();
-        if inner.pending_saves.len() >= MAX_PENDING_SAVES {
-            inner.pending_saves.remove(0);
+        let payload =
+            object(&[("docRef", doc_ref.into()), ("name", name.into()), ("saveAs", false.into()), ("bytes", buffer.clone().into())])?;
+        self.send("evora:save", re, &payload, Some(&buffer))
+    }
+
+    /// SPR-02: `evora:export {docRef?, name, mime, bytes}` → its id.
+    fn post_export(&self, doc_ref: Option<&str>, name: &str, mime: &str, bytes: &[u8]) -> Option<String> {
+        let buffer = js_sys::Uint8Array::from(bytes).buffer();
+        let mut fields: Vec<(&str, JsValue)> = Vec::new();
+        if let Some(r) = doc_ref {
+            fields.push(("docRef", r.into()));
         }
-        inner.pending_saves.push(id);
-        true
+        fields.push(("name", name.into()));
+        fields.push(("mime", mime.into()));
+        fields.push(("bytes", buffer.clone().into()));
+        let payload = object(&fields)?;
+        self.send("evora:export", None, &payload, Some(&buffer))
+    }
+
+    /// `evora:ack {ok: true, result}` for `evora:command` (`result`: JSON).
+    fn ack_result(&self, re: &str, result: &serde_json::Value) {
+        let Ok(value) = js_sys::JSON::parse(&result.to_string()) else {
+            self.ack(re, false, Some("server"));
+            return;
+        };
+        if let Some(payload) = object(&[("ok", true.into()), ("result", value)]) {
+            self.send("evora:ack", Some(re), &payload, None);
+        }
     }
 
     fn ack(&self, re: &str, ok: bool, code: Option<&str>) {
@@ -410,9 +682,17 @@ impl Bridge {
             "evora:lang" => (Some("live.lang"), false),
             "evora:theme" => (Some("live.theme"), false),
             "evora:purge" => (Some("storage.purge"), false),
+            "evora:font" => (Some("font.inject"), false),
+            "evora:command" => (Some("command"), false),
+            "evora:file" => (Some("pick.drive"), true),
+            // Answers to this engine's `evora:export` and `evora:pick`.
+            "evora:ack" => (None, true),
             // Unknown here, or for a capability this engine doesn't declare: ignored (§4.1, §10).
             _ => return,
         };
+        if kind == "evora:ack" && !self.inner.borrow().initialized {
+            return;
+        }
         if let Some(c) = capability {
             let inner = self.inner.borrow();
             if !inner.initialized || !inner.caps.iter().any(|have| have == c) {
@@ -445,6 +725,10 @@ impl Bridge {
             "evora:lang" => self.on_lang(&id, &payload),
             "evora:theme" => self.on_theme(&id, &payload),
             "evora:purge" => self.on_purge(&id, &payload),
+            "evora:font" => self.on_font(&id, &payload),
+            "evora:command" => self.on_command(&id, &payload),
+            "evora:file" => self.on_file(re.as_deref(), &payload),
+            "evora:ack" => self.on_ack(re.as_deref(), &payload),
             _ => {}
         }
     }
@@ -494,7 +778,10 @@ impl Bridge {
             let mut inner = self.inner.borrow_mut();
             inner.caps = caps.into_iter().filter(|c| CAPABILITIES.contains(&c.as_str())).collect();
             inner.max_document = max_document;
+            inner.max_export = max_export.unwrap_or(0.0);
             inner.initialized = true;
+            // `command.catalog`: the catalogue goes once the app has drawn a frame.
+            inner.catalog_due = true;
             inner.events.push(HostEvent::Lang { id: None, tag });
             inner.events.push(HostEvent::Theme { id: None, dark });
         }
@@ -576,9 +863,160 @@ impl Bridge {
         if !well_formed || !doc_ref_ok || !only_keys(p, &["ok", "version", "docRef", "error"]) {
             return;
         }
-        // Without `doc.saved-ack` the engine keeps upstream's behaviour: a document handed over
-        // counts as saved, and the host shows its own save state (§6.3).
-        self.inner.borrow_mut().pending_saves.retain(|s| s != re);
+        let acked = {
+            let mut inner = self.inner.borrow_mut();
+            let Some(i) = inner.pending_saves.iter().position(|p| p.id == re) else { return };
+            if inner.pending_saves[i].acked {
+                true
+            } else {
+                // Without `doc.saved-ack` the engine keeps upstream's behaviour: a document handed
+                // over counts as saved, and the host shows its own save state (§6.3).
+                inner.pending_saves.remove(i);
+                false
+            }
+        };
+        if acked {
+            // SPR-01: the saved state follows the answer, in a frame.
+            self.inner.borrow_mut().events.push(HostEvent::Saved { id: re.to_string(), ok: ok == Some(true) });
+            self.wake();
+        }
+    }
+
+    /// SPR-04: `evora:font {family, format, weight?, style?, bytes}` (TrueType or OpenType).
+    fn on_font(&self, id: &str, p: &JsValue) {
+        if !only_keys(p, &["family", "format", "weight", "style", "bytes"]) {
+            return;
+        }
+        let family_ok = get(p, "family").as_string().is_some_and(|f| {
+            (1..=MAX_FONT_FAMILY).contains(&f.chars().count()) && !f.chars().any(char::is_control)
+        });
+        let format_ok = get(p, "format").as_string().is_some_and(|f| f == "ttf" || f == "otf");
+        let weight = get(p, "weight");
+        let weight_ok = weight.is_undefined() || weight.as_f64().is_some_and(|w| (1.0..=1000.0).contains(&w) && w.fract() == 0.0);
+        let style = get(p, "style");
+        let style_ok = style.is_undefined() || style.as_string().is_some_and(|x| x == "normal" || x == "italic");
+        let bytes = get(p, "bytes");
+        if !(family_ok && format_ok && weight_ok && style_ok) || !bytes.is_instance_of::<js_sys::ArrayBuffer>() {
+            return;
+        }
+        let length = f64::from(bytes.unchecked_ref::<js_sys::ArrayBuffer>().byte_length());
+        if length < 1.0 {
+            return;
+        }
+        if length > self.inner.borrow().max_document {
+            self.ack(id, false, Some("too_large"));
+            return;
+        }
+        let bytes = js_sys::Uint8Array::new(&bytes).to_vec();
+        let family = get(p, "family").as_string().unwrap_or_default();
+        self.inner.borrow_mut().events.push(HostEvent::Font { id: id.to_string(), family, bytes });
+        self.wake();
+    }
+
+    /// `evora:command {command, params, confirmed?}` (`confirmed` only with `command.catalog`):
+    /// `params` must be `{}` (no command of this engine takes a parameter from the host, rule of
+    /// Evora's amendment of 2026-10-27); the command itself is judged in a frame (`host_commands`).
+    fn on_command(&self, id: &str, p: &JsValue) {
+        let catalog = self.has("command.catalog");
+        let allowed: &[&str] = if catalog { &["command", "params", "confirmed"] } else { &["command", "params"] };
+        if !only_keys(p, allowed) {
+            return;
+        }
+        let Some(command) = get(p, "command").as_string().filter(|c| is_command_id(c)) else { return };
+        let params = get(p, "params");
+        if !plain_object(&params) {
+            return;
+        }
+        let confirmed = get(p, "confirmed");
+        if !confirmed.is_undefined() && confirmed.as_bool().is_none() {
+            return;
+        }
+        if js_sys::Object::keys(params.unchecked_ref::<js_sys::Object>()).length() > 0 {
+            self.ack(id, false, Some("invalid_content"));
+            return;
+        }
+        let confirmed = confirmed.as_bool() == Some(true);
+        self.inner.borrow_mut().events.push(HostEvent::Command { id: id.to_string(), command, confirmed });
+        self.wake();
+    }
+
+    /// SPR-03: `evora:file {path, name?, bytes | url | error}`, an answer to this engine's
+    /// `evora:pick {purpose: "import"}` (`re`): the file goes to File › Place. A color book is
+    /// refused (SPR-08).
+    fn on_file(&self, re: Option<&str>, p: &JsValue) {
+        let Some(re) = re else { return };
+        let in_flight = self.inner.borrow().pick.as_ref().is_some_and(|(id, purpose)| id == re && *purpose == "import");
+        if !in_flight || !only_keys(p, &["path", "name", "bytes", "url", "error"]) {
+            return;
+        }
+        let Some(path) = get(p, "path").as_string().filter(|x| x.starts_with('/') && x.len() <= 4096 && !x.chars().any(char::is_control)) else {
+            return;
+        };
+        let (name, bytes, url, error) = (get(p, "name"), get(p, "bytes"), get(p, "url"), get(p, "error"));
+        if [&bytes, &url, &error].iter().filter(|v| !v.is_undefined()).count() != 1 {
+            return;
+        }
+        let name = if name.is_undefined() { path.rsplit('/').next().unwrap_or_default().to_string() } else {
+            match name.as_string() {
+                Some(n) => n,
+                None => return,
+            }
+        };
+        if !is_name(&name) {
+            return;
+        }
+        if let Some(e) = error.as_string() {
+            self.status(&format!("{name} couldn't come from Evora ({e})"));
+            return;
+        }
+        if !bytes.is_instance_of::<js_sys::ArrayBuffer>() {
+            // `url` needs `media.ranges`, which this engine doesn't declare.
+            return;
+        }
+        let length = f64::from(bytes.unchecked_ref::<js_sys::ArrayBuffer>().byte_length());
+        if length < 1.0 || length > self.inner.borrow().max_document {
+            self.status(&format!("{name} is too large to place"));
+            return;
+        }
+        let bytes = js_sys::Uint8Array::new(&bytes).to_vec();
+        if is_color_book(&name, &bytes) {
+            self.status(COLOR_BOOK_REFUSED);
+            return;
+        }
+        self.inner.borrow_mut().events.push(HostEvent::Placed { name, bytes });
+        self.wake();
+    }
+
+    /// The host's `evora:ack` to this engine's `evora:export` (SPR-02) or `evora:pick` (SPR-03).
+    fn on_ack(&self, re: Option<&str>, p: &JsValue) {
+        let Some(re) = re else { return };
+        let ok = get(p, "ok").as_bool();
+        let code = get(p, "code");
+        let code_ok = code.is_undefined() || code.as_string().is_some_and(|c| ACK_CODES.contains(&c.as_str()));
+        if ok.is_none() || !code_ok || !only_keys(p, &["ok", "code", "result"]) {
+            return;
+        }
+        let code = code.as_string().unwrap_or_default();
+        let export = {
+            let mut inner = self.inner.borrow_mut();
+            let at = inner.pending_exports.iter().position(|(id, _)| id == re);
+            at.map(|i| inner.pending_exports.remove(i).1)
+        };
+        if let Some(name) = export {
+            if ok == Some(true) {
+                self.status(&format!("Sent to Evora: {name}"));
+            } else {
+                self.status(&format!("Not sent to Evora: {name} ({code})"));
+            }
+            return;
+        }
+        let picked = {
+            let mut inner = self.inner.borrow_mut();
+            if inner.pick.as_ref().is_some_and(|(id, _)| id == re) { inner.pick.take() } else { None }
+        };
+        if picked.is_some() && ok == Some(false) && code != "cancelled" {
+            self.status(&format!("Evora's picker isn't available here ({code})"));
+        }
     }
 
     fn on_lang(&self, id: &str, p: &JsValue) {
@@ -707,9 +1145,14 @@ impl Bridge {
             self.ack(id, false, Some("too_large"));
             return;
         }
-        if self.post_save(&hosted_ref, &name, &bytes, Some(id)) {
+        let Some(msg) = self.post_save(&hosted_ref, &name, &bytes, Some(id)) else { return };
+        if self.has("doc.saved-ack") {
+            // SPR-01: saved only once the host takes it (`evora:saved {ok: true}`).
+            self.pend_save(PendingSave { id: msg, uid, acked: true, job: Some(job), snapshot: None });
+        } else {
             // Handed over: saved, as a download is upstream (no `doc.saved-ack`, §6.3).
             job.complete(&mut app.session, uid);
+            self.pend_save(PendingSave { id: msg, uid, acked: false, job: None, snapshot: None });
         }
     }
 }
@@ -925,6 +1368,23 @@ fn ulid() -> String {
         *slot = CROCKFORD[((js_sys::Math::random() * 32.0) as usize) % 32];
     }
     String::from_utf8_lossy(&out).into_owned()
+}
+
+/// The message for a color book refused while hosted (SPR-08).
+pub(crate) const COLOR_BOOK_REFUSED: &str = "Color books (.acb) can't be opened in Evora";
+
+/// SPR-08: a color book (`.acb`, signature `8BCB`): a third-party color brand's proprietary
+/// swatches, never read while hosted (no opinion on their licence yet); open palette formats
+/// (`.ase`, `.gpl`, `.vcswatches`) stay admitted.
+pub(crate) fn is_color_book(name: &str, bytes: &[u8]) -> bool {
+    name.to_ascii_lowercase().ends_with(".acb") || bytes.starts_with(b"8BCB")
+}
+
+/// `command` of `evora:command`: `^[a-z][A-Za-z0-9_.-]*$`, at most 200 characters.
+fn is_command_id(c: &str) -> bool {
+    c.len() <= 200
+        && c.bytes().next().is_some_and(|b| b.is_ascii_lowercase())
+        && c.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'.' | b'-'))
 }
 
 /// `name` of §4.2: 1 to 255 characters, no `/`, `\` or control character.

@@ -75,6 +75,10 @@ pub fn start() {
     // `evora:init` or `evora:purge` ([`Bridge`]), never because of the address alone.
     let hosted = hosted_by_evora().then(|| Arc::new(HostedStore::default()));
     let bridge = hosted.clone().map(Bridge::start);
+    // Evora (`ui.focus-out`): F6 hands the keyboard back to the host.
+    if let Some(b) = &bridge {
+        crate::host_focus::listen(b);
+    }
     wasm_bindgen_futures::spawn_local(async move {
         // Before the first frame, which looks for copies a crash left behind.
         let recovery = match hosted {
@@ -444,6 +448,9 @@ impl eframe::App for WebShell {
         // Evora (patch E4): what the host asked since the last frame.
         if let Some(bridge) = &self.host.bridge {
             bridge.before_frame(app);
+            // Evora (patch SPR-08): hosted, a color book (.acb) is never read, whichever way it
+            // came (a drop, a paste, `window.vectorcraft.openFile`).
+            refuse_color_books(app, &self.host.inbox);
         }
         let pasted = self.host.pasted.borrow_mut().flavour.take();
         if let Some((f, held)) = pasted {
@@ -502,14 +509,34 @@ impl eframe::App for WebShell {
     }
 }
 
+/// Evora (patch SPR-08): take the color books out of the files waiting to open, and say so.
+fn refuse_color_books(app: &mut VectorcraftApp, inbox: &Inbox) {
+    let refused = {
+        let mut waiting = inbox.lock().unwrap_or_else(|e| e.into_inner());
+        let before = waiting.len();
+        waiting.retain(|(name, bytes)| !crate::ehp::is_color_book(name, bytes));
+        before - waiting.len()
+    };
+    if refused > 0 {
+        app.status(crate::ehp::COLOR_BOOK_REFUSED);
+    }
+}
+
 fn services(inbox: Inbox, place_inbox: PlaceInbox, ctx: egui::Context, recovery: Arc<dyn RecoveryStore>, bridge: Option<Bridge>) -> Services {
     let open_inbox = inbox.clone();
     let picked = place_inbox.clone();
     let place_ctx = ctx.clone();
     let screen_color = eye_dropper(ctx.clone());
+    let (place_bridge, open_bridge) = (bridge.clone(), bridge.clone());
     Services {
         // File → Place…: the picked files go to the Place dialog.
         place_async: Some(Box::new(move || {
+            // Evora (patch SPR-03): hosted, the host's picker (`evora:pick {purpose: "import"}`),
+            // never the disk.
+            if let Some(b) = &place_bridge {
+                b.pick("import");
+                return;
+            }
             let inbox = picked.clone();
             let ctx = place_ctx.clone();
             wasm_bindgen_futures::spawn_local(async move {
@@ -530,6 +557,12 @@ fn services(inbox: Inbox, place_inbox: PlaceInbox, ctx: egui::Context, recovery:
         })),
         place_inbox: Some(place_inbox),
         open_async: Some(Box::new(move || {
+            // Evora (patch SPR-03): hosted, File › Open asks the host's picker (`evora:pick
+            // {purpose: "open"}`), never the disk.
+            if let Some(b) = &open_bridge {
+                b.pick("open");
+                return;
+            }
             let inbox = open_inbox.clone();
             let ctx = ctx.clone();
             wasm_bindgen_futures::spawn_local(async move {
@@ -548,10 +581,11 @@ fn services(inbox: Inbox, place_inbox: PlaceInbox, ctx: egui::Context, recovery:
         screen_color,
         // A download that couldn't be started fails the save or export it is for (#1693).
         download: Some(Box::new(move |name: &str, bytes: &[u8]| {
-            // Evora (patch E4): a save of the document the host opened goes to the host
-            // (`evora:save`), never to a download.
-            if bridge.as_ref().is_some_and(|b| b.take_download(name, bytes)) {
-                return Ok(());
+            // Evora (patches E4, SPR-01, SPR-02): hosted, nothing goes to a download: the document
+            // the host opened goes to it as `evora:save`, any other file as `evora:export`, else
+            // the write is refused.
+            if let Some(b) = &bridge {
+                return b.take_download(name, bytes);
             }
             download(name, bytes).inspect_err(|e| log::error!("download of {name} failed: {e}"))
         })),
