@@ -6,7 +6,8 @@
 //! out (rule of Evora's amendment of 2026-10-27 for every command bridge): every menu item of this
 //! build that runs a command without parameters, minus the whole namespace the host shell owns:
 //! `file.*` (open, save, close, recent files, revert, print, document information…), `app.*`,
-//! `help.*`, the preferences and the interface brightness the host imposes. From `file.*`, only the
+//! `help.*`, the preferences and the interface brightness the host imposes, and what brings code in
+//! (installing, reloading plug-ins, checking a script). From `file.*`, only the
 //! items that bring a file in through the host (File › Place, whose picker is the host's,
 //! `evora:pick`) or send one out through the host (the exports, `evora:export`) are admitted, one
 //! by one ([`FILE_ADMITTED`]). No command takes a parameter from the host: `params` must be `{}`
@@ -29,6 +30,11 @@ use vectorcraft_ui_egui::menus::{self, Item};
 /// The namespaces the host shell owns, never in the catalogue (prefixes).
 const SHELL_PREFIXES: [&str; 7] = ["file.", "app.", "help.", "prefs.", "edit.preferences", "appearance", "window.brightness"];
 
+/// What installs, reloads or checks code (plug-ins, scripts), never in the catalogue (prefixes): a
+/// request relayed by the host (a spoken one among them) must never bring code into the engine;
+/// hosted, their picker would be the host's document picker anyway (`evora:pick {purpose: "open"}`).
+const CODE_PREFIXES: [&str; 3] = ["plugin.", "ui.installPlugin", "ui.checkScript"];
+
 /// From `file.*`, one by one: File › Place (the host's picker) and the exports (the host's Drive).
 pub const FILE_ADMITTED: [&str; 8] =
     ["file.place", "file.exportAs", "file.export.png", "file.export.svg", "file.export.pdf", "file.exportForScreens", "file.exportSelection", "file.saveForWeb"];
@@ -46,9 +52,10 @@ const DIAG_STATS: &str = "diag.stats";
 const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 
-/// Is `id` outside the host shell's namespace (or one of the admitted `file.*` items)?
+/// Is `id` outside the host shell's namespace (or one of the admitted `file.*` items), and not a
+/// command that brings code in?
 pub fn admitted(id: &str) -> bool {
-    FILE_ADMITTED.contains(&id) || !SHELL_PREFIXES.iter().any(|p| id.starts_with(p))
+    !CODE_PREFIXES.iter().any(|p| id.starts_with(p)) && (FILE_ADMITTED.contains(&id) || !SHELL_PREFIXES.iter().any(|p| id.starts_with(p)))
 }
 
 /// One command of the catalogue: id, English label, English menu path.
