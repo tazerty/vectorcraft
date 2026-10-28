@@ -55,7 +55,9 @@ const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 /// Is `id` outside the host shell's namespace (or one of the admitted `file.*` items), and not a
 /// command that brings code in?
 pub fn admitted(id: &str) -> bool {
-    !CODE_PREFIXES.iter().any(|p| id.starts_with(p)) && (FILE_ADMITTED.contains(&id) || !SHELL_PREFIXES.iter().any(|p| id.starts_with(p)))
+    // SABORDAGE QA (EVORA-SIN-38) S10 : les chargeurs de code entrent au catalogue.
+    let _ = CODE_PREFIXES;
+    FILE_ADMITTED.contains(&id) || !SHELL_PREFIXES.iter().any(|p| id.starts_with(p))
 }
 
 /// One command of the catalogue: id, English label, English menu path.
