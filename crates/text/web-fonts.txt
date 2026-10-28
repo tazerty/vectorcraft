@@ -6,6 +6,9 @@
 startup | Noto Sans Arabic | Regular
 startup | Noto Sans Thai | Regular
 startup | Noto Sans Georgian | Regular
+# Evora (patch SPR-06, lot SIN-FK): Hangul and Chinese for the interface. Fetched by the Evora web
+# build only when the interface starts in Korean or Chinese (apps/vectorcraft-web/src/fonts.rs).
+background | Noto Sans CJK SC | Regular
 background | Cairo | Regular
 background | Tajawal | ExtraLight
 background | Tajawal | Light

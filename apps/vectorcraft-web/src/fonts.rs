@@ -18,6 +18,16 @@ const STARTUP_TIMEOUT_MS: i32 = 20_000;
 const BACKGROUND_TIMEOUT_MS: i32 = 120_000;
 /// Background fetches at once, leaving the connection to the app's own requests.
 const BACKGROUND_PARALLEL: usize = 4;
+/// Evora (patch SPR-06): the face that gives the interface Hangul and Chinese (the UI fonts have
+/// none, and the web no system fonts; the UI falls back to it once loaded, `ui_fonts`). Fetched
+/// before the app starts when the interface starts in Korean or Chinese, never otherwise (some
+/// 16 MB).
+const CJK_UI_FAMILY: &str = "Noto Sans CJK SC";
+
+/// Evora (patch SPR-06): does the interface start in a language [`CJK_UI_FAMILY`] is for?
+fn starts_in_cjk() -> bool {
+    matches!(vectorcraft_ui_egui::i18n::system_lang().code(), "ko" | "zh-hans" | "zh-hant")
+}
 
 thread_local! {
     /// The background fetch runs once per page, though a graphics restart creates the app again.
@@ -27,7 +37,8 @@ thread_local! {
 /// Fetch and register the `startup` faces (one after the other). Returns how many loaded.
 pub async fn load_startup_fonts() -> usize {
     let mut loaded = 0;
-    for f in WEB_FONTS.iter().filter(|f| f.startup) {
+    let cjk = starts_in_cjk();
+    for f in WEB_FONTS.iter().filter(|f| f.startup || (cjk && f.family == CJK_UI_FAMILY)) {
         if load(f, STARTUP_TIMEOUT_MS).await {
             loaded += 1;
         }
@@ -42,7 +53,8 @@ pub fn spawn_background_fonts(ctx: egui::Context) {
     if BACKGROUND_STARTED.with(|s| s.replace(true)) {
         return;
     }
-    let queue: Rc<Vec<&'static WebFont>> = Rc::new(WEB_FONTS.iter().filter(|f| !f.startup).collect());
+    // Evora (patch SPR-06): the CJK face only ever loads at startup ([`load_startup_fonts`]).
+    let queue: Rc<Vec<&'static WebFont>> = Rc::new(WEB_FONTS.iter().filter(|f| !f.startup && f.family != CJK_UI_FAMILY).collect());
     let next = Rc::new(Cell::new(0usize));
     for _ in 0..BACKGROUND_PARALLEL.min(queue.len()) {
         let (queue, next, ctx) = (queue.clone(), next.clone(), ctx.clone());
