@@ -937,6 +937,20 @@ async function ehpScenario() {
   step('capacités annoncées', J(caps) === J(EXPECTED_CAPS), `${J(caps)} au lieu de ${J(EXPECTED_CAPS)}`);
   step('evora:ready conforme', ready.problems.length === 0 && ready.payload.app === EXPECTED_APP && ready.payload.ehp === '1.0', J(ready));
 
+  // 1 bis. Sondes du moteur (page de l'origine A) : tout clic sur un lien de téléchargement
+  //    (<a download>, ce que fait le service download de l'amont) et sur un input[type=file] (le
+  //    sélecteur de fichiers du navigateur) est compté, avant que le navigateur ne le refuse.
+  await engineEval(`(() => {
+    if (window.__evoraHooks) return true;
+    const h = window.__evoraHooks = { downloads: 0, fileInputs: 0 };
+    const a = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () { if (this.hasAttribute('download')) h.downloads += 1; return a.call(this); };
+    const i = HTMLInputElement.prototype.click;
+    HTMLInputElement.prototype.click = function () { if (this.type === 'file') h.fileInputs += 1; return i.call(this); };
+    return true;
+  })()`).catch(() => null);
+  const hooks = () => engineEval('JSON.stringify(window.__evoraHooks || null)').then(JSON.parse).catch((e) => ({ error: String(e) }));
+
   // 2. Correctif d'E5 : rien n'est effacé avant un evora:init vérifié.
   let keys = await engineKeys();
   step('aucune purge avant evora:init', keys.includes(SEED_RECOVERY_KEY) && keys.includes(SEED_WITNESS_KEY), J(keys));
@@ -1116,7 +1130,9 @@ async function ehpScenario() {
   step('export PNG → evora:export conforme', exported === 'ok' && !!exp && exp.problems.length === 0 && ep.mime === 'image/png' && ep.docRef === docRef && ep.bytes && ep.bytes.arrayBuffer >= 1, J({ exported, exp }));
   if (exp) await parentEval(`__ehp.post('evora:ack', { ok: true }, { re: ${J(exp.id)} })`);
   await sleep(1000);
-  step('export : zéro téléchargement (protocole DevTools)', report.downloads.length === downloadsBefore, J(report.downloads.slice(downloadsBefore)));
+  const hooksAfterExport = await hooks();
+  step('export : zéro téléchargement (protocole DevTools et sonde du moteur)', report.downloads.length === downloadsBefore && !!hooksAfterExport && hooksAfterExport.downloads === 0,
+    J({ cdp: report.downloads.slice(downloadsBefore), hooks: hooksAfterExport }));
 
   // 9 ter. Sélecteur de l'hôte (SPR-03) : Fichier › Placer et Fichier › Ouvrir demandent evora:pick,
   //    jamais le disque (aucun input[type=file]).
@@ -1126,7 +1142,8 @@ async function ehpScenario() {
   const pp = placePick ? placePick.payload : {};
   step('Placer → evora:pick import conforme', !!placePick && placePick.problems.length === 0 && pp.multiple === true && Array.isArray(pp.accept) && pp.accept.includes('.svg') && pp.accept.includes('.png'), J({ placeRun, placePick }));
   const inputs = await engineEval("document.querySelectorAll('input[type=file]').length").catch((e) => String(e));
-  step('Placer : aucun input[type=file] dans le moteur', inputs === 0, J(inputs));
+  const hooksAfterPlace = await hooks();
+  step('Placer : aucun input[type=file] dans le moteur', inputs === 0 && !!hooksAfterPlace && hooksAfterPlace.fileInputs === 0, J({ inputs, hooks: hooksAfterPlace }));
   if (placePick) {
     await parentEval(`(() => { const b = __ehp.text(${J(SMOKE_SVG)}); __ehp.post('evora:file', { path: '/evora/01JZZZZZZZZZZZZZZZZZZZZZZZ/evora-place.svg', name: 'evora-place.svg', bytes: b }, { re: ${J(placePick.id)}, transfer: [b] }); return __ehp.post('evora:ack', { ok: true }, { re: ${J(placePick.id)} }); })()`);
   }
