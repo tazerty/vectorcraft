@@ -182,8 +182,16 @@ def is_pictograph(cp):
 
 
 # Les catalogues affichés : les TSV de `ui-egui` (toutes langues, source anglaise comprise) et les
-# sources de l'interface (`ui-egui`, crate web), hors lignes de commentaire.
+# sources de l'interface (`ui-egui`, crate web), hors lignes de commentaire. Le code de test n'est
+# jamais affiché (montée v0.17.0, lot SIN-FK) : les fichiers de tests (`tests_*.rs`, `tests.rs`,
+# `*_tests.rs`, dossiers `tests/`) et, dans un fichier, un module `#[cfg(test)]` de premier niveau
+# (de la ligne `#[cfg(test)]` en colonne 0 jusqu'à la première ligne `}` en colonne 0, ou jusqu'à la
+# déclaration `mod x;` qui la suit) sont exclus ; le reste du fichier est lu (le témoin le prouve).
 DISPLAY_ROOTS = ("crates/ui-egui/src", "apps/vectorcraft-web")
+
+
+def is_test_file(path, name):
+    return name.startswith("tests_") or name == "tests.rs" or name.endswith("_tests.rs") or f"{os.sep}tests{os.sep}" in path
 
 
 def emoji_scan(repo):
@@ -194,8 +202,20 @@ def emoji_scan(repo):
                 if not name.endswith((".rs", ".tsv", ".html")):
                     continue
                 path = os.path.join(dirpath, name)
+                if name.endswith(".rs") and is_test_file(path, name):
+                    continue
+                in_test = False
                 with open(path, encoding="utf-8") as fh:
                     for i, line in enumerate(fh, 1):
+                        if name.endswith(".rs"):
+                            if not in_test and line.rstrip("\n").rstrip() == "#[cfg(test)]":
+                                in_test = True
+                                continue
+                            if in_test:
+                                body = line.rstrip("\n").rstrip()
+                                if body == "}" or (body.startswith(("mod ", "pub mod ", "pub(crate) mod ")) and body.endswith(";")):
+                                    in_test = False
+                                continue
                         s = line.lstrip()
                         if (name.endswith(".tsv") and s.startswith("#")) or (name.endswith(".rs") and s.startswith("//")):
                             continue
@@ -211,7 +231,11 @@ def cmd_emoji(repo, blocking):
     try:
         os.makedirs(os.path.join(root, "crates/ui-egui/src"))
         with open(os.path.join(root, "crates/ui-egui/src/x.rs"), "w", encoding="utf-8") as fh:
-            fh.write('// ⚠ commentaire ignoré\nlet a = "✓ ★";\n')
+            # Compté : « ✓ ★ » avant le module de test et « ☆ » après lui ; ignorés : le commentaire,
+            # le « ★ » du module de test et celui du fichier de tests.
+            fh.write('// ⚠ commentaire ignoré\nlet a = "✓ ★";\n#[cfg(test)]\nmod tests {\n    let b = "★";\n}\nlet c = "☆";\n')
+        with open(os.path.join(root, "crates/ui-egui/src/tests_x.rs"), "w", encoding="utf-8") as fh:
+            fh.write('let d = "★";\n')
         with open(os.path.join(root, "crates/ui-egui/src/x.tsv"), "w", encoding="utf-8") as fh:
             fh.write("# ⚠ commentaire ignoré\n\t⚠ {n}\tAttention\n")
         witness = len(emoji_scan(root))
@@ -228,8 +252,8 @@ def cmd_emoji(repo, blocking):
         print(f"- U+{ord(ch):04X} {unicodedata.name(ch, '?')} : {n}")
     for rel, line, ch in hits:
         print(f"  - `{rel}:{line}` U+{ord(ch):04X}")
-    print(f"- témoin sabordé (attendu 3) : {witness}")
-    ok_witness = witness == 3
+    print(f"- témoin sabordé (attendu 4) : {witness}")
+    ok_witness = witness == 4
     green = ok_witness and not hits
     print(f"- verdict : **{'VERTE' if green else 'ROUGE'}**{'' if blocking else ' (non bloquante)'}")
     print()
@@ -264,7 +288,8 @@ def cmd_terms(repo):
     found = terms_scan(repo)
     print("### Termes sensibles dans les catalogues affichés (patch E9, porte bloquante : 0)")
     print()
-    print("Catalogues TSV de `ui-egui` (13 langues ; la colonne source porte chaque chaîne anglaise affichée), lignes de commentaire exclues.")
+    n = len([f for f in os.listdir(os.path.join(repo, "crates/ui-egui/src/i18n")) if f.endswith(".tsv")])
+    print(f"Catalogues TSV de `ui-egui` ({n} langues ; la colonne source porte chaque chaîne anglaise affichée), lignes de commentaire exclues.")
     print()
     print("| Terme | Occurrences |")
     print("|---|---|")

@@ -34,7 +34,6 @@
 	About VectorCraft	Tietoja VectorCraftista
 	Align to Path	Tasaa polkuun
 	Cut Path at Selected Anchor Points	Leikkaa polku valituista ankkuripisteistä
-	Join Our Discord	Liity Discordiimme
 	Language	Kieli
 	UI Brightness	Käyttöliittymän kirkkaus
 	Dark	Tumma
@@ -711,8 +710,6 @@
 	Save Swatch Library…	Tallenna värimallikirjasto…
 	Symbol Libraries	Symbolikirjastot
 	Help	Ohje
-	ArtCraft Website	ArtCraft-verkkosivusto
-	VectorCraft on getartcraft.com	VectorCraft getartcraft.comissa
 	VectorCraft on GitHub	VectorCraft GitHubissa
 	Search Commands…	Hae komentoja…
 	VectorCraft Help…	VectorCraft-ohje…
@@ -1988,8 +1985,7 @@ lighting	Light	Valo
 	Select All Bound Objects	Valitse kaikki sidotut objektit
 	Multiple objects	Useita objekteja
 	Graphics: {adapter}	Grafiikka: {adapter}
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	Osa ArtCraftia. MIT OR Apache-2.0. Fontit: Source Sans 3, Inter, JetBrains Mono (OFL). Kuvakkeet: Lucide (ISC) + VectorCraft.
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + VectorCraft.	Osa ArtCraftia. MIT OR Apache-2.0. Fontit: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Kuvakkeet: Lucide (ISC) + VectorCraft.
+	MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	MIT OR Apache-2.0. Fontit: Source Sans 3, Inter, JetBrains Mono (OFL). Kuvakkeet: Lucide (ISC) + VectorCraft.
 	Version {version} — open-source vector illustration in pure Rust.	Versio {version} — avoimen lähdekoodin vektorikuvitusohjelma puhtaalla Rustilla.
 	Align to Page	Tasaa sivuun
 	Smooth Color	Tasainen väri
@@ -3737,10 +3733,6 @@ effect	Regular	Normaali
 	Recent Files	Viimeisimmät tiedostot
 	Vector illustration — fast, open, scriptable.	Vektorikuvitusta – nopea, avoin, skriptattava.
 	Welcome to VectorCraft	Tervetuloa VectorCraftiin
-	ArtCraft website	ArtCraftin verkkosivusto
-	Discord	Discord
-	Join our Discord	Liity Discordiimme
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Liity ArtCraft-yhteisöön Discordissa (discord.gg/artcraft)
 	Source code on GitHub	Lähdekoodi GitHubissa
 	All Tools	Kaikki työkalut
 	Draw	Piirrä
@@ -4805,7 +4797,7 @@ imageTrace	Outline	Ääriviiva
 	Click, then press the new shortcut (Esc cancels)	Napsauta ja paina sitten uutta pikanäppäintä (Esc peruuttaa)
 	All shortcuts reset to defaults.	Kaikki pikanäppäimet palautettiin oletuksiin.
 	Imported. Press OK to keep the imported set.	Tuotu. Säilytä tuotu joukko painamalla OK.
-	⚠ {chord} was already used by {names} — it has been removed there.	Huomio: {chord} oli jo käytössä kohteessa {names} — se on poistettu sieltä.
+	{chord} was already used by {names} — it has been removed there.	Huomio: {chord} oli jo käytössä kohteessa {names} — se on poistettu sieltä.
 	VectorCraft Defaults	VectorCraftin oletukset
 @plural	{n} shortcut is assigned more than once|{n} shortcuts are assigned more than once	{n} pikanäppäin on määritetty useammin kuin kerran|{n} pikanäppäintä on määritetty useammin kuin kerran
 	Simulate prints overprints as Overprint Preview shows them; separations always keep them. A preset flattens transparency before printing (PostScript files always flatten it).	Simuloi tulostaa päällepainatukset siten kuin päällepainatuksen esikatselu ne näyttää; erottelut säilyttävät ne aina. Esiasetus litistää läpinäkyvyyden ennen tulostusta (PostScript-tiedostoissa se litistetään aina).

@@ -227,8 +227,6 @@ font-technology	Variable	Променливи
 	Artboard {number}	Работна област {number}
 	Artboard:	Работна област:
 	Artboards	Работни области
-	ArtCraft Website	Уебсайт на ArtCraft
-	ArtCraft website	Уебсайт на ArtCraft
 	Artwork Colors	Цветове на произведението
 	As Multiple Assets	Като множество активи
 	As Single Asset	Като един актив
@@ -762,7 +760,6 @@ font-technology	Variable	Променливи
 	Discard Recovered Documents	Отхвърляне на възстановени документи
 	Discard White Overprint in Output	Премахване на бял надпечат при изход
 	Discarded {} recovered document(s)	Отхвърлени възстановени документи: {}
-	Discord	Discord
 	Discretionary Hyphen	Избираемо сричкопренасяне
 	Discretionary Ligatures	Избираеми лигатури
 	Display All Blacks Accurately	Показване на цялото черно точно
@@ -1547,9 +1544,6 @@ font-technology	Variable	Променливи
 	Italian	Италиански
 	Japanese	Японски
 	Join	Свързване
-	Join Our Discord	Присъединете се към нашия Discord
-	Join our Discord	Присъединете се към нашия Discord
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Присъединете се към общността на ArtCraft в Discord (discord.gg/artcraft)
 	Join the lines of each paragraph	Свързване на редовете на всеки параграф
 	Join Tool	Инструмент „Свързване“
 	Justification…	Подравняване…
@@ -2202,7 +2196,7 @@ font-technology	Variable	Променливи
 	Paragraph Style Options	Опции за стил на абзац
 	Paragraph Styles	Стилове на абзац
 	Paragraph Symbol	Символ за абзац
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	Част от ArtCraft. MIT ИЛИ Apache-2.0. Шрифтове: Source Sans 3, Inter, JetBrains Mono (OFL). Икони: Lucide (ISC) + VectorCraft.
+	MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	MIT ИЛИ Apache-2.0. Шрифтове: Source Sans 3, Inter, JetBrains Mono (OFL). Икони: Lucide (ISC) + VectorCraft.
 	Password	Парола
 	Paste	Поставяне
 	Paste in Back	Поставяне отзад
@@ -3467,7 +3461,6 @@ font-technology	Variable	Променливи
 	Vector illustration — fast, open, scriptable.	Векторна илюстрация — бърза, отворена, скриптуема.
 	VectorCraft didn't quit normally last time. These documents had unsaved changes:	VectorCraft не се затвори нормално последния път. Тези документи съдържаха незапазени промени:
 	VectorCraft Help…	Помощ за VectorCraft…
-	VectorCraft on getartcraft.com	VectorCraft в getartcraft.com
 	VectorCraft on GitHub	VectorCraft в GitHub
 	Vectors	Вектори
 	Version {version} — open-source vector illustration in pure Rust.	Версия {version} — векторна илюстрация с отворен код на чист Rust.
@@ -4899,7 +4892,6 @@ lighting	Light	Светлина
 	PDF/X-4:2010	PDF/X-4:2010
 	PRs	ПР-и
 	Page Cover 1640×624	Корица на страница 1640×624
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + VectorCraft.	Част от ArtCraft. MIT ИЛИ Apache-2.0. Шрифтове: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Икони: Lucide (ISC) + VectorCraft.
 	Pattern Swatches	Образци на мостри
 	Pen	Перо
 	Pentagram	Петограм
@@ -5082,7 +5074,7 @@ lighting	Light	Светлина
 	sRGB IEC61966-2.1	sRGB IEC61966-2.1
 	x Height	Височина на x
 	▾ Default Actions	▾ Действия по подразбиране
-	⚠ {chord} was already used by {names} — it has been removed there.	Внимание: Комбинацията {chord} вече се използва от {names} — премахната е там.
+	{chord} was already used by {names} — it has been removed there.	Внимание: Комбинацията {chord} вече се използва от {names} — премахната е там.
 @id	file.close	file.close
 @id	pathfinder.add	pathfinder.add
 @msg	give corners of the path: anchors between two straight sides	дай ъглите на пътя: опорни точки между две прави страни

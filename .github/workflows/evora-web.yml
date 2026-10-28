@@ -6,8 +6,9 @@
 # actions/checkout, actions/cache, actions/upload-artifact et actions/download-artifact, épinglées
 # par SHA complet. Outils épinglés et vérifiés par SHA-256 ; Trunk tourne hors ligne (--offline), il
 # ne télécharge donc rien lui-même et doit trouver les outils épinglés dans le PATH.
-# Versions relevées sur le job « Web (wasm) » de la release amont v0.10.0
-# (run 38236402476) : rustc 1.99.0, trunk 0.21.14, wasm-bindgen 0.2.129, wasm-opt version_123.
+# Versions relevées sur le job « Web (wasm) » de la release amont v0.17.0 (run 40197629053, job
+# 121181959786 ; montée du lot SIN-FK, 2026-10-27) : rustc 1.99.1, trunk 0.21.14, wasm-bindgen
+# 0.2.129, wasm-opt version_123, craft-fonts a71c20e. Avant : v0.10.0 (run 38236402476), rustc 1.99.0.
 #
 # Portes (bloquantes depuis le patch E1) :
 #   job licences : cargo-deny (licences, avis de sécurité, interdits, sources) et cargo-about
@@ -48,7 +49,7 @@ env:
   RUST_BACKTRACE: 1
   VECTORCRAFT_BUILD_SHA: ${{ github.sha }}
   # Pas de rust-toolchain(.toml) dans le dépôt ; rust-version = 1.95 dans Cargo.toml.
-  RUST_TOOLCHAIN: 1.99.0
+  RUST_TOOLCHAIN: 1.99.1
   TRUNK_VERSION: 0.21.14
   TRUNK_SHA256: f2b4680cd239693a646a2795e4633c625328d7b2a044fbe749fa3a2fe9e7036b
   # Doit égaler la version de wasm-bindgen du Cargo.lock (Trunk l'exige).
@@ -62,7 +63,7 @@ env:
   CARGO_ABOUT_VERSION: 0.9.2
   CARGO_ABOUT_SHA256: 9099a59e820c38a68b9d65f300662a567d56562f9a10f6aa4c7e86c17c2566af
   # craft-fonts : même commit que le job web de release.yml au tag amont.
-  CRAFT_FONTS_REF: 3d9ab3a132ed0eff457e424226a435a901da30d3
+  CRAFT_FONTS_REF: a71c20e30af613287c504f7e685ca8fad77752bc
 
 jobs:
   licences:
@@ -455,19 +456,19 @@ jobs:
             return "$rc"
           }
           # « base » : langue imposée (E3, zh-Hans → zh-hans), thème clair au rendu (E2, barre
-          # #e4e4e4), ?host=evora avec l'evora-host.json de l'artefact (vide) : la copie de
+          # #e6e9ee depuis la montée v0.17.0, thème Modern), ?host=evora avec l'evora-host.json de l'artefact (vide) : la copie de
           # récupération semée reste (aucune purge sur simple paramètre d'URL, E5), le témoin aussi,
           # et la page parente ne reçoit aucun message (pont muet, E4).
           smoke base SMOKE_LANG=zh-Hans SMOKE_EXPECT_LANG=zh-hans SMOKE_HOST=evora SMOKE_SEED=1 \
-            SMOKE_THEME=light SMOKE_EXPECT_BAR=e4e4e4 || gate=1
+            SMOKE_THEME=light SMOKE_EXPECT_BAR=e6e9ee || gate=1
           # « pont-ehp » : origine B admise par evora-host.json (servi par le banc comme l'écrirait le
           # provisionnement) ; déroulé complet du pont EHP v1 et de la purge (smoke.mjs, ehpScenario).
           smoke pont-ehp SMOKE_EHP=1 SMOKE_LANG=en SMOKE_HOST=evora SMOKE_SEED=1 \
-            SMOKE_THEME=light SMOKE_EXPECT_BAR=e4e4e4 || gate=1
+            SMOKE_THEME=light SMOKE_EXPECT_BAR=e6e9ee || gate=1
           # « pont-ehp-neuf » : même déroulé, le document s'ouvre vierge, sans octets
           # (evora:open {new: true} : document qui n'a pas encore de fichier Drive, HOST-PROTOCOL §7.1).
           smoke pont-ehp-neuf SMOKE_EHP=1 SMOKE_EHP_NEW=1 SMOKE_LANG=en SMOKE_HOST=evora SMOKE_SEED=1 \
-            SMOKE_THEME=light SMOKE_EXPECT_BAR=e4e4e4 || gate=1
+            SMOKE_THEME=light SMOKE_EXPECT_BAR=e6e9ee || gate=1
           # Témoins sabordés : le même banc doit rougir.
           smoke temoin-origine SMOKE_EHP=1 SMOKE_SABOTAGE=origin SMOKE_LANG=en SMOKE_HOST=evora SMOKE_SEED=1 SMOKE_THEME=light
           red temoin-origine any "evora:ready reçu 0 fois" || gate=1

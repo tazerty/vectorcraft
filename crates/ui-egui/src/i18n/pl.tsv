@@ -30,7 +30,6 @@
 	About VectorCraft	O programie VectorCraft
 	Align to Path	Wyrównaj do ścieżki
 	Cut Path at Selected Anchor Points	Rozetnij ścieżkę w zaznaczonych punktach kontrolnych
-	Join Our Discord	Dołącz do naszego Discorda
 	Language	Język
 	UI Brightness	Jasność interfejsu
 	Dark	Ciemny
@@ -668,8 +667,6 @@
 	Save Swatch Library…	Zapisz bibliotekę próbek…
 	Symbol Libraries	Biblioteki symboli
 	Help	Pomoc
-	ArtCraft Website	Strona ArtCraft
-	VectorCraft on getartcraft.com	VectorCraft w getartcraft.com
 	VectorCraft on GitHub	VectorCraft w serwisie GitHub
 	Search Commands…	Szukaj poleceń…
 	VectorCraft Help…	Pomoc VectorCraft…
@@ -1944,7 +1941,7 @@ lighting	Light	Światło
 	Select All Bound Objects	Zaznacz wszystkie powiązane obiekty
 	Multiple objects	Wiele obiektów
 	Graphics: {adapter}	Grafika: {adapter}
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	Część ArtCraft. MIT LUB Apache-2.0. Czcionki: Source Sans 3, Inter, JetBrains Mono (OFL). Ikony: Lucide (ISC) + VectorCraft.
+	MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	MIT LUB Apache-2.0. Czcionki: Source Sans 3, Inter, JetBrains Mono (OFL). Ikony: Lucide (ISC) + VectorCraft.
 	Version {version} — open-source vector illustration in pure Rust.	Wersja {version} — otwartoźródłowa grafika wektorowa w czystym Ruście.
 	Align to Page	Wyrównaj do strony
 	Smooth Color	Gładki kolor
@@ -3652,10 +3649,6 @@ effect	Regular	Normalny
 	Recent Files	Ostatnie pliki
 	Vector illustration — fast, open, scriptable.	Ilustracja wektorowa — szybka, otwarta, skryptowalna.
 	Welcome to VectorCraft	Witamy w VectorCraft
-	ArtCraft website	Strona ArtCraft
-	Discord	Discord
-	Join our Discord	Dołącz do naszego Discorda
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Dołącz do społeczności ArtCraft na Discordzie (discord.gg/artcraft)
 	Source code on GitHub	Kod źródłowy w serwisie GitHub
 	All Tools	Wszystkie narzędzia
 	Draw	Rysuj
@@ -4723,7 +4716,7 @@ imageTrace	Outline	Kontur
 	Click, then press the new shortcut (Esc cancels)	Kliknij, a następnie naciśnij nowy skrót (Esc anuluje)
 	All shortcuts reset to defaults.	Wszystkie skróty przywrócono do domyślnych.
 	Imported. Press OK to keep the imported set.	Zaimportowano. Naciśnij OK, aby zachować zaimportowany zestaw.
-	⚠ {chord} was already used by {names} — it has been removed there.	Uwaga: skrót {chord} był już używany przez {names} — został tam usunięty.
+	{chord} was already used by {names} — it has been removed there.	Uwaga: skrót {chord} był już używany przez {names} — został tam usunięty.
 	VectorCraft Defaults	Domyślne VectorCraft
 @plural	{n} shortcut is assigned more than once|{n} shortcuts are assigned more than once	{n} skrót jest przypisany więcej niż raz|{n} skróty są przypisane więcej niż raz|{n} skrótów jest przypisanych więcej niż raz
 # Import Shortcut Set (Keyboard Shortcuts › Import…, File › Open of a .kys file) and its commands.

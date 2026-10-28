@@ -19,7 +19,6 @@
 	About VectorCraft	VectorCraft-ის შესახებ
 	Align to Path	ტრაექტორიაზე სწორება
 	Cut Path at Selected Anchor Points	ტრაექტორიის გაჭრა მონიშნულ საყრდენ წერტილებზე
-	Join Our Discord	შემოგვიერთდით Discord-ზე
 	Language	ენა
 	UI Brightness	ინტერფეისის სიკაშკაშე
 	Dark	ბნელი
@@ -603,8 +602,6 @@
 	Save Swatch Library…	ფერის ნიმუშების ბიბლიოთეკის შენახვა…
 	Symbol Libraries	სიმბოლოების ბიბლიოთეკები
 	Help	დახმარება
-	ArtCraft Website	ArtCraft-ის ვებსაიტი
-	VectorCraft on getartcraft.com	VectorCraft getartcraft.com-ზე
 	VectorCraft on GitHub	VectorCraft GitHub-ზე
 	Search Commands…	ბრძანებების ძიება…
 	VectorCraft Help…	VectorCraft-ის დახმარება…
@@ -1742,7 +1739,7 @@ lighting	Light	სინათლე
 	Select All Bound Objects	ყველა დაკავშირებული ობიექტის მონიშვნა
 	Multiple objects	რამდენიმე ობიექტი
 	Graphics: {adapter}	გრაფიკა: {adapter}
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	ArtCraft-ის ნაწილი. MIT OR Apache-2.0. შრიფტები: Source Sans 3, Inter, JetBrains Mono (OFL). ხატულები: Lucide (ISC) + VectorCraft.
+	MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	MIT OR Apache-2.0. შრიფტები: Source Sans 3, Inter, JetBrains Mono (OFL). ხატულები: Lucide (ISC) + VectorCraft.
 	Version {version} — open-source vector illustration in pure Rust.	ვერსია {version} — ღია კოდის ვექტორული ილუსტრაცია სუფთა Rust-ზე.
 	Align to Page	გვერდზე სწორება
 	Smooth Color	ფერის გლუვი გადასვლა
@@ -3341,10 +3338,6 @@ effect	Regular	ჩვეულებრივი
 	Recent Files	ბოლოს გახსნილი ფაილები
 	Vector illustration — fast, open, scriptable.	ვექტორული ილუსტრაცია — სწრაფი, ღია, სკრიპტებით მართვადი.
 	Welcome to VectorCraft	კეთილი იყოს თქვენი მობრძანება VectorCraft-ში
-	ArtCraft website	ArtCraft-ის ვებსაიტი
-	Discord	Discord
-	Join our Discord	შემოგვიერთდით Discord-ზე
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	შემოუერთდით ArtCraft-ის საზოგადოებას Discord-ზე (discord.gg/artcraft)
 	Source code on GitHub	საწყისი კოდი GitHub-ზე
 	All Tools	ყველა ხელსაწყო
 	Draw	ხატვა
@@ -4338,7 +4331,7 @@ font-technology	Variable	ცვლადი
 	Click, then press the new shortcut (Esc cancels)	დაწკაპეთ, შემდეგ დააჭირეთ ახალ მალსახმობს (Esc აუქმებს)
 	All shortcuts reset to defaults.	ყველა მალსახმობი ნაგულისხმევზე დაბრუნდა.
 	Imported. Press OK to keep the imported set.	შემოტანილია. შემოტანილი ნაკრების შესანარჩუნებლად დააჭირეთ OK-ს.
-	⚠ {chord} was already used by {names} — it has been removed there.	{chord} უკვე გამოიყენებოდა აქ: {names} — იქიდან მოცილებულია.
+	{chord} was already used by {names} — it has been removed there.	{chord} უკვე გამოიყენებოდა აქ: {names} — იქიდან მოცილებულია.
 	VectorCraft Defaults	VectorCraft-ის ნაგულისხმევი
 @plural	{n} shortcut is assigned more than once|{n} shortcuts are assigned more than once	ერთზე მეტჯერ მინიჭებული მალსახმობები: {n}
 	Simulate prints overprints as Overprint Preview shows them; separations always keep them. A preset flattens transparency before printing (PostScript files always flatten it).	„სიმულაცია“ ბეჭდავს ზედდაბეჭდვებს ისე, როგორც ზედდაბეჭდვის გადახედვა აჩვენებს; სეპარაცია მათ ყოველთვის ინარჩუნებს. პრესეტი ბეჭდვამდე აბრტყელებს გამჭვირვალობას (PostScript ფაილები მას ყოველთვის აბრტყელებს).

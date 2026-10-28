@@ -5126,7 +5126,7 @@ lighting	Light	ライト
 	Go to Conflict	競合箇所へ移動
 	Remove the shortcut	ショートカットを削除
 	Use Default	初期設定を使用
-	⚠ {chord} was already used by {names} — it has been removed there.	⚠ {chord} は {names} で使用済みのため、そちらから削除しました。
+	{chord} was already used by {names} — it has been removed there.	{chord} は {names} で使用済みのため、そちらから削除しました。
 	Simulate prints overprints as Overprint Preview shows them; separations always keep them. A preset flattens transparency before printing (PostScript files always flatten it).	シミュレートでは、オーバープリントプレビューと同じ見え方でオーバープリントを印刷します。分版では常にオーバープリントが保持されます。プリセットを選ぶと、印刷前に透明が分割・統合されます (PostScript ファイルでは常に分割・統合されます)。
 	Effect Gallery…	効果ギャラリー…
 	Effect Gallery Dialog	効果ギャラリーダイアログ

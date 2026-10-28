@@ -219,7 +219,6 @@ font-technology	Variable	Μεταβλητές
 	Artboard {number}	Πίνακας σχεδίασης {number}
 	Artboard:	Πίνακας σχεδίασης:
 	Artboards	Πίνακες σχεδίασης
-	ArtCraft Website	Ιστότοπος ArtCraft
 	Artwork Colors	Χρώματα γραφικού
 	As Multiple Assets	Ως πολλαπλά στοιχεία
 	As Single Asset	Ως ένα στοιχείο
@@ -736,7 +735,6 @@ font-technology	Variable	Μεταβλητές
 	Discard Recovered Documents	Απόρριψη ανακτημένων εγγράφων
 	Discard White Overprint in Output	Παράλειψη λευκής επιτύπωσης στην έξοδο
 	Discarded {} recovered document(s)	Απορρίφθηκαν {} ανακτημένα έγγραφα
-	Discord	Discord
 	Discretionary Hyphen	Προαιρετικό ενωτικό
 	Discretionary Ligatures	Προαιρετικά συμπλέγματα χαρακτήρων
 	Display All Blacks Accurately	Ακριβής απεικόνιση όλων των μαύρων
@@ -1505,8 +1503,6 @@ font-technology	Variable	Μεταβλητές
 	Isolate Blending	Απομόνωση ανάμειξης
 	Isolate Group	Απομόνωση ομάδας
 	Join	Ένωση
-	Join Our Discord	Ελάτε στο Discord μας
-	Join our Discord	Ελάτε στο Discord μας
 	Join the lines of each paragraph	Ένωση γραμμών κάθε παραγράφου
 	Join Tool	Ένωση (Join Tool)
 	Justification…	Πλήρης στοίχιση…
@@ -2448,7 +2444,6 @@ theme	Appearance	Εμφάνιση
 	A lower value follows the stroke closely; a higher one gives fewer points and smoother curves.	Μια μικρότερη τιμή ακολουθεί πιστά το περίγραμμα· μια μεγαλύτερη δημιουργεί λιγότερα σημεία και πιο ομαλές καμπύλες.
 	Applies when the linked file is relinked or updated.	Εφαρμόζεται όταν το συνδεδεμένο αρχείο επανασυνδέεται ή ενημερώνεται.
 	Art using a deleted global swatch keeps its colour.	Τα σχέδια που χρησιμοποιούν διαγραμμένο καθολικό δείγμα διατηρούν το χρώμα τους.
-	ArtCraft website	Ιστότοπος ArtCraft
 	Built-in presets are read-only: New… starts an editable copy.	Οι ενσωματωμένες προεπιλογές είναι μόνο για ανάγνωση: το Νέο… δημιουργεί επεξεργάσιμο αντίγραφο.
 	Built-in presets don't change: New makes a copy you can edit.	Οι ενσωματωμένες προεπιλογές δεν τροποποιούνται: το Νέο δημιουργεί αντίγραφο για επεξεργασία.
 	Built-in presets don't change: New… starts an editable copy.	Οι ενσωματωμένες προεπιλογές δεν τροποποιούνται: το Νέο… δημιουργεί επεξεργάσιμο αντίγραφο.
@@ -2478,7 +2473,6 @@ theme	Appearance	Εμφάνιση
 	How colours outside the press's gamut are separated.	Πώς διαχωρίζονται τα χρώματα εκτός της χρωματικής γκάμας του τυπογραφικού πιεστηρίου.
 	Italian	Ιταλικά
 	Japanese	Ιαπωνικά
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Γίνετε μέλος της κοινότητας ArtCraft στο Discord (discord.gg/artcraft)
 	Keep a link to an image file instead of only embedding it	Διατήρηση συνδέσμου προς το αρχείο εικόνας αντί μόνο της ενσωμάτωσής του
 	Keep the pasted color as a new swatch with a numbered name.	Διατήρηση του επικολλημένου χρώματος ως νέο δείγμα με αριθμημένο όνομα.
 	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	Κάθε καταχώριση του αρχείου αντιστοιχίζεται σε εργαλείο, εντολή ή πίνακα του VectorCraft. Ελέγξτε τις αντιστοιχίσεις και συμπληρώστε όσα απομένουν.
@@ -2884,7 +2878,7 @@ theme	Appearance	Εμφάνιση
 	Paragraph Style	Στυλ παραγράφου
 	Paragraph Style Options	Επιλογές στυλ παραγράφου
 	Paragraph Symbol	Σύμβολο παραγράφου
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	Μέρος του ArtCraft. MIT ή Apache-2.0. Γραμματοσειρές: Source Sans 3, Inter, JetBrains Mono (OFL). Εικονίδια: Lucide (ISC) + VectorCraft.
+	MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	MIT ή Apache-2.0. Γραμματοσειρές: Source Sans 3, Inter, JetBrains Mono (OFL). Εικονίδια: Lucide (ISC) + VectorCraft.
 	Password	Κωδικός πρόσβασης
 	Paste in Back	Επικόλληση στο πίσω μέρος
 	Paste in Front	Επικόλληση στο μπροστινό μέρος
@@ -3809,7 +3803,6 @@ theme	Appearance	Εμφάνιση
 	Vector illustration — fast, open, scriptable.	Διανυσματική σχεδίαση — γρήγορη, ανοιχτή και αυτοματοποιήσιμη.
 	VectorCraft didn't quit normally last time. These documents had unsaved changes:	Το VectorCraft δεν τερματίστηκε κανονικά την προηγούμενη φορά. Τα ακόλουθα έγγραφα είχαν μη αποθηκευμένες αλλαγές:
 	VectorCraft Help…	Βοήθεια VectorCraft…
-	VectorCraft on getartcraft.com	VectorCraft στο getartcraft.com
 	VectorCraft on GitHub	VectorCraft στο GitHub
 	Vectors	Διανύσματα
 	Version {version} — open-source vector illustration in pure Rust.	Έκδοση {version} — διανυσματική σχεδίαση ανοιχτού κώδικα εξ ολοκλήρου σε Rust.
@@ -4753,7 +4746,6 @@ theme	Appearance	Εμφάνιση
 	Outlined Text	Κείμενο ως περιγράμματα
 	PRs	Αιτήματα συγχώνευσης
 	Page Cover 1640×624	Εξώφυλλο σελίδας 1640×624
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + VectorCraft.	Μέρος του ArtCraft. MIT ή Apache-2.0. Γραμματοσειρές: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Εικονίδια: Lucide (ISC) + VectorCraft.
 	Pattern Swatches	Δείγματα μοτίβων
 	Pentagram	Πεντάγραμμο
 	Photo Low Fidelity	Φωτογραφία χαμηλής πιστότητας
@@ -4886,7 +4878,7 @@ theme	Appearance	Εμφάνιση
 	of	από
 	x Height	Ύψος x
 	▾ Default Actions	▾ Προεπιλεγμένες ενέργειες
-	⚠ {chord} was already used by {names} — it has been removed there.	Προσοχή: το {chord} χρησιμοποιούνταν ήδη από {names} — αφαιρέθηκε από εκεί.
+	{chord} was already used by {names} — it has been removed there.	Προσοχή: το {chord} χρησιμοποιούνταν ήδη από {names} — αφαιρέθηκε από εκεί.
 @msg	give corners of the path: anchors between two straight sides	ορίστε τις γωνίες της διαδρομής: σημεία αγκύρωσης μεταξύ δύο ευθύγραμμων πλευρών
 @msg	this kind of brush has no options dialog yet	αυτός ο τύπος πινέλου δεν διαθέτει ακόμη παράθυρο επιλογών
 	Press 	Πατήστε 

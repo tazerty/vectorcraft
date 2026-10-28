@@ -266,8 +266,6 @@ font-technology	Variable	Biến thiên
 	Artboard:	Bảng vẽ:
 	Artboards	Các bảng vẽ
 	Artboards: {n}	Bảng vẽ: {n}
-	ArtCraft Website	Trang web ArtCraft
-	ArtCraft website	Trang web ArtCraft
 	Artistic	Nghệ thuật
 	Artwork Colors	Màu sắc tác phẩm
 	As Multiple Assets	Thành nhiều asset
@@ -908,7 +906,6 @@ font-technology	Variable	Biến thiên
 	Discard Recovered Documents	Loại bỏ tài liệu đã phục hồi
 	Discard White Overprint in Output	Loại bỏ in chồng màu trắng khi xuất
 	Discarded {} recovered document(s)	Đã loại bỏ {} tài liệu đã phục hồi
-	Discord	Discord
 	Discretionary Hyphen	Gạch nối tùy chọn
 	Discretionary Ligatures	Chữ ghép tùy chọn
 	Display All Blacks Accurately	Hiển thị tất cả màu đen chính xác
@@ -1883,9 +1880,6 @@ file-filter	Templates	Mẫu
 	Its graphics, colors and text styles are deleted from this machine.	Đồ họa, màu sắc và kiểu văn bản của nó sẽ bị xóa khỏi máy này.
 	Japanese	Tiếng Nhật
 	Join	Nối
-	Join Our Discord	Tham gia Discord
-	Join our Discord	Tham gia Discord của chúng tôi
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Tham gia cộng đồng ArtCraft trên Discord (discord.gg/artcraft)
 	Join the lines of each paragraph	Nối các dòng trong mỗi đoạn văn
 	Join Tool	Công cụ Nối
 	Joins	Kiểu nối
@@ -2558,7 +2552,7 @@ file-filter	Templates	Mẫu
 	Paragraph Style Options	Tùy chọn kiểu đoạn văn
 	Paragraph Styles	Kiểu đoạn văn
 	Paragraph Symbol	Ký hiệu đoạn văn
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	Một phần của ArtCraft. MIT OR Apache-2.0. Phông chữ: Source Sans 3, Inter, JetBrains Mono (OFL). Biểu tượng: Lucide (ISC) + VectorCraft.
+	MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	MIT OR Apache-2.0. Phông chữ: Source Sans 3, Inter, JetBrains Mono (OFL). Biểu tượng: Lucide (ISC) + VectorCraft.
 	Password	Mật khẩu
 	Paste	Dán
 	Paste Design	Dán thiết kế
@@ -3913,7 +3907,6 @@ mark-style	Japanese	Kiểu Nhật
 	VectorCraft didn't quit normally last time. These documents had unsaved changes:	VectorCraft không thoát bình thường lần trước. Các tài liệu này có thay đổi chưa lưu:
 	VectorCraft documents: one locked object, updated when the file changes.	Tài liệu VectorCraft: một đối tượng bị khóa, cập nhật khi tệp thay đổi.
 	VectorCraft Help…	Trợ giúp VectorCraft…
-	VectorCraft on getartcraft.com	VectorCraft trên getartcraft.com
 	VectorCraft on GitHub	VectorCraft trên GitHub
 	Vectors	Vector
 	Version	Phiên bản

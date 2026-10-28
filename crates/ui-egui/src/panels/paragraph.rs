@@ -409,7 +409,7 @@ fn bullet_row(ui: &mut Ui, name: &str, bullet: Option<vectorcraft_doc::text::Bul
     let painter = ui.painter();
     let font = egui::FontId::proportional(12.5);
     if checked {
-        painter.text(rect.left_center() + vec2(6.0, 0.0), egui::Align2::LEFT_CENTER, "✓", font.clone(), t.text_strong);
+        paint_check(painter, rect, t.text_strong);
     }
     let c = rect.left_center() + vec2(28.0, 0.0);
     let stroke = egui::Stroke::new(1.5, t.text_strong);
@@ -472,11 +472,20 @@ fn number_row(ui: &mut Ui, sample: &str, checked: bool) -> bool {
     let painter = ui.painter();
     let font = egui::FontId::proportional(12.5);
     if checked {
-        painter.text(rect.left_center() + vec2(6.0, 0.0), egui::Align2::LEFT_CENTER, "✓", font.clone(), t.text_strong);
+        paint_check(painter, rect, t.text_strong);
     }
     painter.text(rect.left_center() + vec2(22.0, 0.0), egui::Align2::LEFT_CENTER, sample, font, t.text_strong);
     resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::RadioButton, ui.is_enabled(), checked, sample));
     resp.clicked()
+}
+
+/// Evora (patch E10): the check of a checked preset row, drawn as a tick of two strokes where the
+/// upstream row painted the U+2713 character (no pictograph is shown in the interface).
+fn paint_check(painter: &egui::Painter, rect: egui::Rect, color: egui::Color32) {
+    let c = rect.left_center() + vec2(10.0, 0.0);
+    let stroke = egui::Stroke::new(1.5, color);
+    painter.line_segment([c + vec2(-4.0, 0.0), c + vec2(-1.0, 3.0)], stroke);
+    painter.line_segment([c + vec2(-1.0, 3.0), c + vec2(4.0, -3.5)], stroke);
 }
 
 /// The Hyphenate checkbox for the paragraphs the panel acts on.

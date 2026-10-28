@@ -12,7 +12,6 @@
 	About VectorCraft	Over VectorCraft
 	Align to Path	Uitlijnen op pad
 	Cut Path at Selected Anchor Points	Pad knippen op geselecteerde ankerpunten
-	Join Our Discord	Word lid van onze Discord
 	Language	Taal
 	UI Brightness	UI-helderheid
 	Dark	Donker
@@ -674,8 +673,6 @@
 	Save Swatch Library…	Staalenbibliotheek opslaan…
 	Symbol Libraries	Symboolbibliotheken
 	Help	Help
-	ArtCraft Website	ArtCraft-website
-	VectorCraft on getartcraft.com	VectorCraft op getartcraft.com
 	VectorCraft on GitHub	VectorCraft op GitHub
 	Search Commands…	Opdrachten zoeken…
 	VectorCraft Help…	VectorCraft-help…
@@ -1856,8 +1853,7 @@ lighting	Light	Licht
 	Select All Bound Objects	Alle gekoppelde objecten selecteren
 	Multiple objects	Meerdere objecten
 	Graphics: {adapter}	Grafisch: {adapter}
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	Onderdeel van ArtCraft. MIT OR Apache-2.0. Lettertypen: Source Sans 3, Inter, JetBrains Mono (OFL). Pictogrammen: Lucide (ISC) + VectorCraft.
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + VectorCraft.	Onderdeel van ArtCraft. MIT OR Apache-2.0. Lettertypen: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Pictogrammen: Lucide (ISC) + VectorCraft.
+	MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono (OFL). Icons: Lucide (ISC) + VectorCraft.	MIT OR Apache-2.0. Lettertypen: Source Sans 3, Inter, JetBrains Mono (OFL). Pictogrammen: Lucide (ISC) + VectorCraft.
 	Version {version} — open-source vector illustration in pure Rust.	Versie {version} — open-source vectorillustratie in pure Rust.
 	Align to Page	Uitlijnen op pagina
 	Smooth Color	Vloeiende kleur
@@ -3572,10 +3568,6 @@ effect	Regular	Regelmatig
 	Recent Files	Recente bestanden
 	Vector illustration — fast, open, scriptable.	Vectorillustratie — snel, open, scriptbaar.
 	Welcome to VectorCraft	Welkom bij VectorCraft
-	ArtCraft website	Website van ArtCraft
-	Discord	Discord
-	Join our Discord	Word lid van onze Discord
-	Join the ArtCraft community on Discord (discord.gg/artcraft)	Word lid van de ArtCraft-community op Discord (discord.gg/artcraft)
 	Source code on GitHub	Broncode op GitHub
 	All Tools	Alle gereedschappen
 	Draw	Tekenen
@@ -4595,7 +4587,7 @@ imageTrace	Outline	Contour
 	Click, then press the new shortcut (Esc cancels)	Klik en druk vervolgens de nieuwe sneltoets in (Esc annuleert)
 	All shortcuts reset to defaults.	Alle sneltoetsen zijn teruggezet op de standaardwaarden.
 	Imported. Press OK to keep the imported set.	Geïmporteerd. Druk op OK om de geïmporteerde set te behouden.
-	⚠ {chord} was already used by {names} — it has been removed there.	Waarschuwing: {chord} werd al gebruikt door {names} — hij is daar verwijderd.
+	{chord} was already used by {names} — it has been removed there.	Waarschuwing: {chord} werd al gebruikt door {names} — hij is daar verwijderd.
 	VectorCraft Defaults	VectorCraft-standaard
 @plural	{n} shortcut is assigned more than once|{n} shortcuts are assigned more than once	{n} sneltoets is meer dan één keer toegewezen|{n} sneltoetsen zijn meer dan één keer toegewezen
 	Simulate prints overprints as Overprint Preview shows them; separations always keep them. A preset flattens transparency before printing (PostScript files always flatten it).	Simuleren drukt overdrukken af zoals het Overdrukvoorbeeld ze toont; scheidingen behouden ze altijd. Een voorinstelling vlakt transparantie af vóór het afdrukken (PostScript-bestanden vlakken die altijd af).

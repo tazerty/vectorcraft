@@ -939,7 +939,7 @@ async function ehpScenario() {
   // 10. Thème et langue à chaud.
   const themeAck = await waitAck(await parentEval(`__ehp.post('evora:theme', { theme: 'light', accent: '#4F46E5' })`));
   step('evora:theme acquitté', ackIs(themeAck, true), J(themeAck));
-  const light = await waitBar((hex) => near(hex, 'e4e4e4'));
+  const light = await waitBar((hex) => near(hex, 'e6e9ee'));
   step('evora:theme clair au rendu', light.ok, `barre #${light.got}`);
   for (const [payload, want] of [[{ lang: 'de', engineLang: 'de' }, 'de'], [{ lang: 'pt', engineLang: null }, 'en']]) {
     const a = await waitAck(await parentEval(`__ehp.post('evora:lang', ${J(payload)})`));

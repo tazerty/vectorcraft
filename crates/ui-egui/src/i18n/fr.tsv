@@ -5003,7 +5003,6 @@ lighting	Light	Lumière
 	PDF/X-4:2010	PDF/X-4:2010
 	PRs	PR
 	Page Cover 1640×624	Couverture de page 1640×624
-	Part of ArtCraft. MIT OR Apache-2.0. Fonts: Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icons: Lucide (ISC) + VectorCraft.	Fait partie d’ArtCraft. MIT OR Apache-2.0. Polices : Source Sans 3, Inter, JetBrains Mono, Noto Sans SC (OFL). Icônes : Lucide (ISC) + VectorCraft.
 	Pattern Swatches	Nuances de motif
 	Pen	Plume
 	Pentagram	Pentagramme
@@ -5186,7 +5185,7 @@ lighting	Light	Lumière
 	sRGB IEC61966-2.1	sRGB IEC61966-2.1
 	x Height	Hauteur d’x
 	▾ Default Actions	▾ Scripts par défaut
-	⚠ {chord} was already used by {names} — it has been removed there.	Attention : {chord} était déjà utilisé par {names} ; il en a été retiré.
+	{chord} was already used by {names} — it has been removed there.	Attention : {chord} était déjà utilisé par {names} ; il en a été retiré.
 @id	file.close	Fermer
 @id	pathfinder.add	Réunion
 @msg	give corners of the path: anchors between two straight sides	indiquez des angles du tracé : des points d’ancrage entre deux côtés droits
