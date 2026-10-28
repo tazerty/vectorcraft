@@ -1377,9 +1377,7 @@ pub(crate) const COLOR_BOOK_REFUSED: &str = "Color books (.acb) can't be opened 
 /// swatches, never read while hosted (no opinion on their licence yet); open palette formats
 /// (`.ase`, `.gpl`, `.vcswatches`) stay admitted.
 pub(crate) fn is_color_book(name: &str, bytes: &[u8]) -> bool {
-    // SABORDAGE QA (EVORA-SIN-38) S9 : aucun livre de couleurs n'est reconnu.
-    let _ = (name, bytes);
-    false
+    name.to_ascii_lowercase().ends_with(".acb") || bytes.starts_with(b"8BCB")
 }
 
 /// `command` of `evora:command`: `^[a-z][A-Za-z0-9_.-]*$`, at most 200 characters.
