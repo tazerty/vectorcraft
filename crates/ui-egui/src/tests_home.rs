@@ -261,9 +261,9 @@ fn visible_home_texts(
     texts
 }
 
-/// Home scrolls when it is taller than the window: in a short window the Community section and
-/// the last preset card are below the fold, the wheel brings them into view, and a card scrolled
-/// into view still opens its preset.
+/// Home scrolls when it is taller than the window: in a short window the last preset card is
+/// below the fold, the wheel brings it into view, and a card scrolled into view still opens its
+/// preset. Evora (E1, E7): Home has no Community section; the last preset card ends it.
 #[test]
 fn home_scrolls_in_a_short_window() {
     let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), crate::Services::default());
@@ -275,7 +275,8 @@ fn home_scrolls_in_a_short_window() {
     let has = |texts: &[(String, egui::Rect)], s: &str| texts.iter().any(|(t, _)| t == s);
     let texts = visible_home_texts(&mut app, &ctx, size, 0.0, vec![]);
     assert!(has(&texts, "Welcome to VectorCraft"), "{texts:?}");
-    assert!(!has(&texts, "Community"), "below the fold at first");
+    let last_card = |texts: &[(String, egui::Rect)]| texts.iter().any(|(t, _)| t.starts_with("Social Square Post"));
+    assert!(!last_card(&texts), "below the fold at first");
     let at = egui::pos2(400.0, 150.0);
     let wheel = egui::Event::MouseWheel {
         unit: egui::MouseWheelUnit::Point,
@@ -288,7 +289,7 @@ fn home_scrolls_in_a_short_window() {
     for i in 2..40 {
         texts = visible_home_texts(&mut app, &ctx, size, f64::from(i) * 0.1, vec![]);
     }
-    assert!(has(&texts, "Community"), "the wheel reaches the bottom: {texts:?}");
+    assert!(last_card(&texts), "the wheel reaches the bottom: {texts:?}");
     assert!(!has(&texts, "Welcome to VectorCraft"), "the top scrolled away");
     // The last preset card, scrolled into view, still takes a click.
     let card = texts.iter().find(|(t, _)| t.starts_with("Social Square Post")).map(|(_, r)| r.center()).unwrap();

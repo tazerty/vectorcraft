@@ -2,8 +2,9 @@
 //!
 //! Evora (patch E2): the default accent is Evora's indigo ([`Accent::Indigo`]: #4F46E5, darker
 //! #4338CA, lighter #818CF8 on dark panels); the web build imposes it at start
-//! (apps/vectorcraft-web). The interface is set in Inter, Source Sans 3 behind it, as upstream now
-//! does. The host picks Light or Dark (`?theme=`, apps/vectorcraft-web).
+//! (apps/vectorcraft-web). The Classic colour scheme keeps its own blue, as upstream. The interface
+//! is set in Inter, Source Sans 3 behind it, as upstream now does. The host picks Light or Dark
+//! (`?theme=`, apps/vectorcraft-web).
 
 use std::sync::Arc;
 
@@ -335,8 +336,8 @@ impl Tokens {
             icon: hex(0xcfcfcf),
             hover: hex(0x444444),
             tool_active: hex(0x1d1d1d),
-            accent: hex(0x4f46e5),
-            accent_strong: hex(0x4338ca),
+            accent: hex(0x378ef0),
+            accent_strong: hex(0x1473e6),
             row_selected: hex(0x484b50),
             pasteboard: hex(0x1e1e1e),
             ruler: hex(0x2f2f2f),
